@@ -92,15 +92,12 @@ def main(arg, times):
         for j in range(mut_attempts):
             mutator = random.choice(smutops) if len(str(a)) <= min_len else random.choice(mutops)
             a1 = taintedstr.tstr(mutator(str(a)))
-            print("Mutation result: ", repr(a1), "(", str(mutator), ")", flush=True)
             try:        
                 res = _mod.main(a1)
             except:
-                print("Argument was rejected!", flush=True)
+                print("Mutation result: ", repr(a1), "(", str(mutator), ")", flush=True)
                 rejected.add(a1)    
                 break
-            else: 
-                print("Mutated argument still valid ", "(eval = ", res , ")", flush=True)
 
         print("Arg:", repr(a), flush=True)
         print("Eval:", repr(r), flush=True)
