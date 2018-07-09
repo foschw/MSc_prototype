@@ -101,3 +101,4 @@ def main(arg, times):
 if __name__ == "__main__":
     res = main(sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else 1)
     print(res)
+    print(str(len(res)), " rejected elements created")
