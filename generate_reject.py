@@ -82,7 +82,13 @@ def main(arg, times):
     for i in range(times):
         print(i, "--------", flush=True)
         e = pychains.chain.Chain()
-        (a, r) = e.exec_argument(_mod.main)
+        try:
+            (a, r) = e.exec_argument(_mod.main)
+        except:
+            print("Pychains encountered an error, skipping...", flush=True)
+            taintedstr.reset_comparisons()
+            continue
+
         for j in range(mut_attempts):
             mutator = random.choice(smutops) if len(str(a)) <= min_len else random.choice(mutops)
             a1 = taintedstr.tstr(mutator(str(a)))
