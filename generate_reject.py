@@ -71,6 +71,8 @@ def swap(text):
 def main(arg, times):
     # If the string is too short do not use mutators that shrink it further
     min_len = 5
+    # Mutation attempts per generated string since mutations are cheap but generation is expensive
+    mut_attempts = 100
     _mod = imp.load_source('mymod', arg)
     rejected = set()
     smutops = [bitflip, insert]
@@ -78,22 +80,24 @@ def main(arg, times):
     mutops = smutops + lmutops
 
     for i in range(times):
+        print(i, "--------", flush=True)
         e = pychains.chain.Chain()
         (a, r) = e.exec_argument(_mod.main)
-        mutator = random.choice(smutops) if len(str(a)) <= min_len else random.choice(mutops)
-        a1 = taintedstr.tstr(mutator(str(a)))
-        print("Mutation result: ", a1, "(", str(mutator), ")", flush=True)
-        try:        
-            res = _mod.main(a1)
-        except:
-            print("Argument was rejected!")
-            rejected.add(a1)    
-        else: 
-            print("Mutated argument still valid ", "(eval = ", res , ")")
+        for j in range(mut_attempts):
+            mutator = random.choice(smutops) if len(str(a)) <= min_len else random.choice(mutops)
+            a1 = taintedstr.tstr(mutator(str(a)))
+            print("Mutation result: ", repr(a1), "(", str(mutator), ")", flush=True)
+            try:        
+                res = _mod.main(a1)
+            except:
+                print("Argument was rejected!", flush=True)
+                rejected.add(a1)    
+                break
+            else: 
+                print("Mutated argument still valid ", "(eval = ", res , ")", flush=True)
 
         print("Arg:", repr(a), flush=True)
         print("Eval:", repr(r), flush=True)
-        print()
         taintedstr.reset_comparisons()
     
     return rejected
