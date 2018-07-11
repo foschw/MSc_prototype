@@ -5,6 +5,7 @@ import pychains.chain
 import imp
 import taintedstr
 import random
+import pickle
 
 def bitflip(text):
     # Do not mutate if the input is not big enough
@@ -68,17 +69,9 @@ def swap(text):
     b2 = text[e]
     return text[:s] + b2 + text[s+1:e] + b1 + text[e+1:]
 
-def main(arg, times):
-    # If the string is too short do not use mutators that shrink it further
-    min_len = 5
-    # Mutation attempts per generated string since mutations are cheap but generation is expensive
-    mut_attempts = 100
+def get_valid_inputs(arg, times):
     _mod = imp.load_source('mymod', arg)
-    rejected = set()
-    smutops = [bitflip, insert]
-    lmutops = [byteflip, trim, delete, swap]
-    mutops = smutops + lmutops
-
+    res = set()
     for i in range(times):
         print(i, "--------", flush=True)
         e = pychains.chain.Chain()
@@ -88,6 +81,27 @@ def main(arg, times):
             print("Pychains encountered an error, skipping...", flush=True)
             taintedstr.reset_comparisons()
             continue
+        res.add(a)
+        print("Arg:", repr(a), flush=True)
+        print("Eval:", repr(r), flush=True)    
+
+    return res
+
+
+def main(arg, times):
+    # If the string is too short do not use mutators that shrink it further
+    min_len = 5
+    # Mutation attempts per generated string since mutations are cheap but generation is expensive
+    mut_attempts = 100
+    _mod = imp.load_source('mymod', arg)
+    rejected = set()
+    smutops = [bitflip, byteflip, insert]
+    lmutops = [trim, delete, swap]
+    mutops = smutops + lmutops
+    valid_strs = get_valid_inputs(arg, times)
+    print("Got ", len(valid_strs), " valid strings from pychains (", times, " iterations)")
+
+    for a in valid_strs:
 
         for j in range(mut_attempts):
             mutator = random.choice(smutops) if len(str(a)) <= min_len else random.choice(mutops)
@@ -98,14 +112,16 @@ def main(arg, times):
                 print("Mutation result: ", repr(a1), "(", str(mutator), ")", flush=True)
                 rejected.add(a1)    
                 break
+            else:
+                a = a1
 
-        print("Arg:", repr(a), flush=True)
-        print("Eval:", repr(r), flush=True)
-        taintedstr.reset_comparisons()
-    
     return rejected
 
 if __name__ == "__main__":
     res = main(sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else 1)
+    outfile = sys.argv[3] if len(sys.argv) > 3 else "rejected.bin"
     print(res)
     print(str(len(res)), " rejected elements created")
+    res_file = open(outfile, mode='wb')
+    pickle.dump(res, res_file)
+    res_file.close()
