@@ -35,6 +35,8 @@ if __name__ == "__main__":
     fl = arg[arg.index("/"):] if arg.startswith(".") else arg
     for (file, line) in lines_raw:
         if fl in file:
-            lines.append(line)
+            if line in lines:
+                lines.remove(line)
+            lines.insert(0, line)
 
     print(lines)
