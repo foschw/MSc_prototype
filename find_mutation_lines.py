@@ -6,8 +6,6 @@ import taintedstr
 import pickle
 
 lines = []
-global fl
-fl = ""
 
 def line_tracer(frame, event, arg):
     if event == 'line':
@@ -24,6 +22,7 @@ if __name__ == "__main__":
     pick_file = sys.argv[2] if len(sys.argv) > 2 else "rejected.bin"
     pick_handle = open(pick_file, 'rb')
     (rej_strs, errs) = pickle.load(pick_handle)
+    global fl
     fl = arg.replace("\\", "/")
     fl = arg[arg.index("/"):] if arg.startswith(".") else arg
     fl = fl[:arg.rindex("/")-1] if arg.rfind("/") != -1 else fl
