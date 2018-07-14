@@ -13,7 +13,7 @@ def line_tracer(frame, event, arg):
         global lines
         global fl
         if fl in frame.f_code.co_filename:
-            lines.append(frame.f_lineno)
+            lines.insert(0, frame.f_lineno)
             global vrs
             vass = vrs.get(frame.f_lineno) if vrs.get(frame.f_lineno) else []
             for var in frame.f_locals.keys():
