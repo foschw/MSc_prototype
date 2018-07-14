@@ -6,6 +6,7 @@ import taintedstr
 import pickle
 
 lines = []
+vrs = {}
 
 def line_tracer(frame, event, arg):
     if event == 'line':
@@ -13,6 +14,13 @@ def line_tracer(frame, event, arg):
         global fl
         if fl in frame.f_code.co_filename:
             lines.append(frame.f_lineno)
+            global vrs
+            vass = vrs.get(frame.f_lineno) if vrs.get(frame.f_lineno) else []
+            for var in frame.f_locals.keys():
+                val = frame.f_locals[var]
+                if type(val) == type(taintedstr.tstr('')):
+                    vass.append((var, val))
+            vrs[frame.f_lineno] = vass
 
     return line_tracer
 
@@ -37,3 +45,5 @@ if __name__ == "__main__":
     sys.settrace(None)
 
     print(lines)
+    print(s)
+    print(vrs)
