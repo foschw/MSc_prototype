@@ -5,12 +5,16 @@ import imp
 import taintedstr
 import pickle
 
-lines_raw = []
+lines = []
+global fl
+fl = ""
 
 def line_tracer(frame, event, arg):
     if event == 'line':
-        global lines_raw
-        lines_raw.append((frame.f_code.co_filename, frame.f_lineno))
+        global lines
+        global fl
+        if fl in frame.f_code.co_filename:
+            lines.append(frame.f_lineno)
 
     return line_tracer
 
@@ -19,7 +23,10 @@ if __name__ == "__main__":
     _mod = imp.load_source('mymod', arg)
     pick_file = sys.argv[2] if len(sys.argv) > 2 else "rejected.bin"
     pick_handle = open(pick_file, 'rb')
-    rej_strs = pickle.load(pick_handle)
+    (rej_strs, errs) = pickle.load(pick_handle)
+    fl = arg.replace("\\", "/")
+    fl = arg[arg.index("/"):] if arg.startswith(".") else arg
+    fl = fl[:arg.rindex("/")-1] if arg.rfind("/") != -1 else fl
     s = rej_strs.pop()
     try:
         sys.settrace(line_tracer)
@@ -29,14 +36,5 @@ if __name__ == "__main__":
     else:
         assert(False)
     sys.settrace(None)
-    lines = []
-    
-    fl = arg.replace("\\", "/")
-    fl = arg[arg.index("/"):] if arg.startswith(".") else arg
-    for (file, line) in lines_raw:
-        if fl in file:
-            if line in lines:
-                lines.remove(line)
-            lines.insert(0, line)
 
     print(lines)

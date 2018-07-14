@@ -95,6 +95,7 @@ def main(arg, times):
     mut_attempts = 100
     _mod = imp.load_source('mymod', arg)
     rejected = set()
+    errs = set()
     smutops = [bitflip, byteflip, insert]
     lmutops = [trim, delete, swap]
     mutops = smutops + lmutops
@@ -108,20 +109,22 @@ def main(arg, times):
             a1 = taintedstr.tstr(mutator(str(a)))
             try:        
                 res = _mod.main(a1)
-            except:
+            except Exception as ex:
                 print("Mutation result: ", repr(a1), "(", str(mutator), ")", flush=True)
-                rejected.add(a1)    
+                rejected.add(a1)
+                errs.add(ex.__class__.__name__)
                 break
             else:
                 a = a1
 
-    return rejected
+    return (rejected, errs)
 
 if __name__ == "__main__":
-    res = main(sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else 1)
+    (res, errs) = main(sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else 1)
     outfile = sys.argv[3] if len(sys.argv) > 3 else "rejected.bin"
     print(res)
     print(str(len(res)), " rejected elements created")
+    print(errs)
     res_file = open(outfile, mode='wb')
-    pickle.dump(res, res_file)
+    pickle.dump((res, errs), res_file)
     res_file.close()
