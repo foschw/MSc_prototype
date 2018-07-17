@@ -9,8 +9,8 @@ import re
 
 lines = []
 vrs = {}
-RE_if = re.compile(r'\s*if\s+[^:]+:.*')
-RE_elif = re.compile(r'\s*elif\s+[^:]+:.*')
+RE_if = re.compile(r'^\s*(if|elif)\s+([^:]|(:[^\s]))+:\s.*')
+RE_cond = re.compile(r'^\s*(if|elif)\s+([^:]|(:[^\s]))+:\s')
 
 def line_tracer(frame, event, arg):
     if event == 'line':
@@ -56,7 +56,12 @@ if __name__ == "__main__":
     print(s)
     print(vrs)
 
+    options = {}
+
     with open(arg) as fp:
         for i, line in enumerate(fp):
-            if i+1 in lines and (RE_if.findall(line) or RE_elif.findall(line)):
-                print(line)
+            if i+1 in lines and (RE_if.findall(line)):
+                options[i+1] = (line, 2)
+                print(RE_cond.match(line).group())
+
+    print(options)
