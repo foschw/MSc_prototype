@@ -122,9 +122,12 @@ def main(arg, times):
 if __name__ == "__main__":
     (res, errs) = main(sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else 1)
     outfile = sys.argv[3] if len(sys.argv) > 3 else "rejected.bin"
-    print(res)
-    print(str(len(res)), " rejected elements created")
+    resl = []
+    for r in res:
+        resl.append(r)
+    print(resl)
+    print(str(len(resl)), " rejected elements created")
     print(errs)
     res_file = open(outfile, mode='wb')
-    pickle.dump((res, errs), res_file)
+    pickle.dump((resl, errs), res_file)
     res_file.close()
