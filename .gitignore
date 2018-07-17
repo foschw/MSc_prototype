@@ -1,3 +1,4 @@
 *.err
 *.log
 *.bin
+/test.simple.sh

@@ -100,7 +100,7 @@ def main(arg, times):
     lmutops = [trim, delete, swap]
     mutops = smutops + lmutops
     valid_strs = get_valid_inputs(arg, times)
-    print("Got ", len(valid_strs), " valid strings from pychains (", times, " iterations)")
+    print("Got", len(valid_strs), "valid strings from pychains (", times, "iterations)")
 
     for a in valid_strs:
 
