@@ -5,9 +5,12 @@ import imp
 import taintedstr
 import pickle
 import traceback
+import re
 
 lines = []
 vrs = {}
+RE_if = re.compile(r'\s*if\s+[^:]+:.*')
+RE_elif = re.compile(r'\s*elif\s+[^:]+:.*')
 
 def line_tracer(frame, event, arg):
     if event == 'line':
@@ -52,3 +55,8 @@ if __name__ == "__main__":
     print(lines)
     print(s)
     print(vrs)
+
+    with open(arg) as fp:
+        for i, line in enumerate(fp):
+            if i+1 in lines and (RE_if.findall(line) or RE_elif.findall(line)):
+                print(line)
