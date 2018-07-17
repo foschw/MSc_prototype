@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 import sys
 sys.path.append('.')
-import imp
 import taintedstr
 import pickle
-import traceback
 import re
 import ArgTracer
 
@@ -13,7 +11,6 @@ RE_cond = re.compile(r'^\s*(if|elif)\s+([^:]|(:[^\s]))+:\s')
 
 if __name__ == "__main__":
     arg = sys.argv[1]
-    _mod = imp.load_source('mymod', arg)
     pick_file = sys.argv[2] if len(sys.argv) > 2 else "rejected.bin"
     pick_handle = open(pick_file, 'rb')
     (rej_strs, errs) = pickle.load(pick_handle)
