@@ -11,14 +11,15 @@ RE_if = re.compile(r'^\s*(if|elif)\s+([^:]|(:[^\s]))+:\s.*')
 def extract_from_condition(cond):
     poss = cond.count(":")
     if poss < 1:
-        raise ValueError(cond, "is is not a valid condition statement!")
+        return ""
     elif poss == 1:
         try:
             eval(cond[cond.find("if")+2:cond.find(":")])
         except SyntaxError:
-            raise ValueError(cond, "is not executable in python")
+            return ""
         except:
-            return cond[cond.find("if")+2:cond.find(":")]
+            pass
+        return cond[cond.find("if")+2:cond.find(":")].lstrip()
     else:
         idx = 0
         lastvalid = ""
@@ -31,10 +32,9 @@ def extract_from_condition(cond):
             except SyntaxError:
                 continue
             except:
-                lastvalid = substr
-            else:
-                lastvalid = substr
-        return lastvalid
+                pass
+            lastvalid = substr
+        return lastvalid.lstrip()
 
 if __name__ == "__main__":
     arg = sys.argv[1]
