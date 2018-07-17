@@ -32,6 +32,8 @@ def extract_from_condition(cond):
                 continue
             except:
                 lastvalid = substr
+            else:
+                lastvalid = substr
         return lastvalid
 
 if __name__ == "__main__":
