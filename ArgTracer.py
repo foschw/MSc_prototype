@@ -52,7 +52,7 @@ def line_tracer(frame, event, arg):
         global ar
         if fl in frame.f_code.co_filename:
             res = get_code_from_file(ar, frame.f_lineno)
-            if res and RE_if.findall(res):
+            if res and RE_if.match(res):
                 cond = extract_from_condition(res)
                 bval = eval(cond, frame.f_globals, frame.f_locals)
                 lines.insert(0, (frame.f_lineno, bval))
