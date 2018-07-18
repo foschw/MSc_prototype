@@ -4,19 +4,23 @@ import sys
 import traceback
 import taintedstr
 import re
+import functools
 
+clines = []
 lines = []
 vrs = {}
 ar = ""
 
 RE_if = re.compile(r'^\s*(if|elif)\s+([^:]|(:[^\s]))+:\s.*')
 
+@functools.lru_cache(maxsize=None)
 def get_code_from_file(arg, linenum):
     with open(arg) as fp:
         for i, line in enumerate(fp):
             if i+1 == linenum:
                 return line
-            
+
+@functools.lru_cache(maxsize=None)            
 def extract_from_condition(cond):
     poss = cond.count(":")
     if poss < 1:
@@ -48,14 +52,16 @@ def extract_from_condition(cond):
 def line_tracer(frame, event, arg):
     if event == 'line':
         global lines
+        global clines
         global fl
         global ar
         if fl in frame.f_code.co_filename:
+            lines.insert(0, frame.f_lineno)
             res = get_code_from_file(ar, frame.f_lineno)
             if res and RE_if.match(res):
                 cond = extract_from_condition(res)
                 bval = eval(cond, frame.f_globals, frame.f_locals)
-                lines.insert(0, (frame.f_lineno, bval))
+                clines.insert(0, (frame.f_lineno, bval))
                 global vrs
                 vass = vrs.get(frame.f_lineno)[0] if vrs.get(frame.f_lineno) else []
                 vass_curr = []
@@ -90,4 +96,4 @@ def trace(arg, inpt):
     else:
         assert(False)
     sys.settrace(None)
-    return (lines, vrs)
+    return (lines, clines, vrs)

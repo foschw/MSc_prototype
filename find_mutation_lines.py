@@ -4,7 +4,7 @@ sys.path.append('.')
 import taintedstr
 import pickle
 import re
-import ArgTracer
+import argtracer
 
 RE_if = re.compile(r'^\s*(if|elif)\s+([^:]|(:[^\s]))+:\s.*')
 
@@ -43,19 +43,10 @@ if __name__ == "__main__":
     (rej_strs, errs) = pickle.load(pick_handle)
    
     s = rej_strs[0]
+
+    (lines, clines, vrs) = argtracer.trace(arg, s)
     
-    (lines, vrs) = ArgTracer.trace(arg, s)
-
-    print(lines)
-    print(s)
-    print(vrs)
-
-    options = {}
-
-    with open(arg) as fp:
-        for i, line in enumerate(fp):
-            if i+1 in lines and (RE_if.findall(line)):
-                options[i+1] = (line, 2)
-                print(extract_from_condition(line))
-
-    print(options)
+    print("Used string:", repr(s))
+    print("Executed lines:", lines)
+    print("Executed conditions:", clines)
+    print("Available strings:", vrs)
