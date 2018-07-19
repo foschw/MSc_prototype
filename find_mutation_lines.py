@@ -71,6 +71,7 @@ def cleanup(mut_dir, completed):
 if __name__ == "__main__":
     arg = sys.argv[1]
     arg = arg.replace("\\", "/")
+    ar1 = arg
     mut_dir = arg[arg.rfind("/")+1:arg.rfind(".")] if arg.rfind("/") >= 0 else arg[:arg.rfind(".")]
     script_name = mut_dir
     mut_dir = "mutants/" + mut_dir + "/"
@@ -82,8 +83,6 @@ if __name__ == "__main__":
     # Index of the string currently processed
     str_cnt = 0
     # Mutation counter
-    # int(mut_cnt/2) is the number of modified conditions
-    # mut_cnt%2 is the path relative to make_new_positions
     mut_cnt = 0
     pick_file = sys.argv[2] if len(sys.argv) > 2 else "rejected.bin"
     pick_handle = open(pick_file, 'rb')
@@ -96,42 +95,43 @@ if __name__ == "__main__":
 
     (_, b_clines, b_vrs, _) = argtracer.trace(arg, basein)
 
-    queue = [arg]
     completed = []
-    
-    while queue:
-        arg = queue.pop(0)
-        berr = False
-        # Check whether the chosen correct string is now rejected
-        _mod = imp.load_source('mymod', arg)
-        try:
-            _mod.main(basein)
-        except:
-            berr = True
-        # Mutation guided by rejected strings
-        s = rej_strs[0][0]
 
-        (lines, clines, vrs, err) = argtracer.trace(arg, s)
+    for s in rej_strs:
+        s = s[0]
+        queue = [ar1]
+        while queue:
+            arg = queue.pop(0)
+            berr = False
+            # Check whether the chosen correct string is now rejected
+            _mod = imp.load_source('mymod', arg)
+            try:
+                _mod.main(basein)
+            except:
+                berr = True
+            # Mutation guided by rejected strings
 
-        delta = get_diff(b_clines, clines) if not berr else []
+            (lines, clines, vrs, err) = argtracer.trace(arg, s)
 
-        print("Used string:", repr(s))
-        print("Executed conditions:", clines)
-        print("Difference to base:", delta)
-        print("")
-        if not berr and err and (was_manually_raised(arg, lines[0])):
-            for fix in make_new_conditions(delta[0], arg, b_vrs, vrs):
-                mods = {
-                    lines[0] : fix
-                    }
-                cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
-                queue.append(cand)
-                file_copy_replace(cand, arg, mods)
-                mut_cnt += 1
-        else:
-            completed.append(arg)
-            print("Mutation complete:", cand)
+            delta = get_diff(b_clines, clines) if not berr else []
 
-    print()
+            print("Used string:", repr(s))
+            print("Executed conditions:", clines)
+            print("Difference to base:", delta)
+            print("")
+            if not berr and err and (was_manually_raised(arg, lines[0])):
+                for fix in make_new_conditions(delta[0], arg, b_vrs, vrs):
+                    mods = {
+                        lines[0] : fix
+                        }
+                    cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
+                    queue.append(cand)
+                    file_copy_replace(cand, arg, mods)
+                    mut_cnt += 1
+            else:
+                completed.append(arg)
+                print("Mutation complete:", cand)
+        str_cnt += 1
+        print()
     print("Done. The final mutants are in:", mut_dir)
     
