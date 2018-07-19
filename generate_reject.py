@@ -95,7 +95,6 @@ def main(arg, times):
     mut_attempts = 100
     _mod = imp.load_source('mymod', arg)
     rejected = set()
-    errs = set()
     smutops = [bitflip, byteflip, insert]
     lmutops = [trim, delete, swap]
     mutops = smutops + lmutops
@@ -111,23 +110,21 @@ def main(arg, times):
                 res = _mod.main(a1)
             except Exception as ex:
                 print("Mutation result: ", repr(a1), "(", str(mutator), ")", flush=True)
-                rejected.add(a1)
-                errs.add(ex.__class__.__name__)
+                rejected.add((a1, a))
                 break
             else:
                 a = a1
 
-    return (rejected, errs)
+    return rejected
 
 if __name__ == "__main__":
-    (res, errs) = main(sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else 1)
+    res = main(sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else 1)
     outfile = sys.argv[3] if len(sys.argv) > 3 else "rejected.bin"
     resl = []
     for r in res:
         resl.append(r)
     print(resl)
     print(str(len(resl)), " rejected elements created")
-    print(errs)
     res_file = open(outfile, mode='wb')
-    pickle.dump((resl, errs), res_file)
+    pickle.dump(resl, res_file)
     res_file.close()

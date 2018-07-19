@@ -93,7 +93,5 @@ def trace(arg, inpt):
     except:
         sys.settrace(None)
         traceback.print_exc()
-    else:
-        assert(False)
     sys.settrace(None)
-    return (lines, clines, vrs)
+    return (lines.copy(), clines.copy(), vrs.copy())
