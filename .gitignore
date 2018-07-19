@@ -3,3 +3,4 @@
 *.bin
 subjects/__pycache__/
 __pycache__/
+mutants/

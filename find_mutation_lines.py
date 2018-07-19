@@ -8,6 +8,8 @@ import argtracer
 import functools
 from argtracer import get_code_from_file, extract_from_condition
 import random
+import os
+import glob
 
 RE_raise = re.compile(r'(^|\s+)raise\s+')
 
@@ -50,6 +52,16 @@ def make_new_condition(old_cond, file, b_varsat, varsat):
 
 if __name__ == "__main__":
     arg = sys.argv[1]
+    arg = arg.replace("\\", "/")
+    mut_dir = arg[arg.rfind("/")+1:arg.rfind(".")] if arg.rfind("/") >= 0 else arg[:arg.rfind(".")]
+    mut_dir = "mutants/" + mut_dir
+    if not os.path.exists(mut_dir):
+        os.makedirs(mut_dir)
+    else:
+        for fl in glob.glob(mut_dir + "/*"):
+            os.remove(fl)
+
+    mut_dir = "mutants/" + mut_dir
     pick_file = sys.argv[2] if len(sys.argv) > 2 else "rejected.bin"
     pick_handle = open(pick_file, 'rb')
     rej_strs = pickle.load(pick_handle)
