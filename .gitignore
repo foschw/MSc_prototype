@@ -1,4 +1,5 @@
 *.err
 *.log
 *.bin
-/test.simple.sh
+subjects/__pycache__/
+__pycache__/
