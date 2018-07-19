@@ -10,6 +10,7 @@ from argtracer import get_code_from_file, extract_from_condition
 import random
 import os
 import glob
+import imp
 
 RE_raise = re.compile(r'(^|\s+)raise\s+')
 
@@ -51,14 +52,22 @@ def make_new_conditions(old_cond, file, b_varsat, varsat):
     return (full_str.replace(cond_str, new_cond), full_str.replace(cond_str, valid_cond))
 
 def file_copy_replace(target, source, modifications):
-    with open(target, "w") as trgt:
-        with open(source, "r") as src:
+    with open(target, "w", encoding="UTF-8") as trgt:
+        with open(source, "r", encoding="UTF-8") as src:
             for i, line in enumerate(src):
                 if modifications.get(i+1):
                     trgt.write(modifications[i+1])
                 else:
                     trgt.write(line)
-    
+
+def cleanup(mut_dir, completed):
+    for fl in glob.glob(mut_dir + "/*.py"):
+        fl = fl.replace("\\", "/")
+        if fl not in completed:
+            os.remove(fl)
+
+        
+
 if __name__ == "__main__":
     arg = sys.argv[1]
     arg = arg.replace("\\", "/")
@@ -68,8 +77,7 @@ if __name__ == "__main__":
     if not os.path.exists(mut_dir):
         os.makedirs(mut_dir)
     else:
-        for fl in glob.glob(mut_dir + "*"):
-            os.remove(fl)
+        cleanup(mut_dir, [])
 
     # Index of the string currently processed
     str_cnt = 0
@@ -86,25 +94,44 @@ if __name__ == "__main__":
     for cand in rej_strs:
         basein = cand[1] if len(cand[1]) > len(basein) else basein
 
-    (_, b_clines, b_vrs) = argtracer.trace(arg, basein)
+    (_, b_clines, b_vrs, _) = argtracer.trace(arg, basein)
 
-    # Mutation guided by rejected strings
-    s = rej_strs[0][0]
+    queue = [arg]
+    completed = []
+    
+    while queue:
+        arg = queue.pop(0)
+        berr = False
+        # Check whether the chosen correct string is now rejected
+        _mod = imp.load_source('mymod', arg)
+        try:
+            _mod.main(basein)
+        except:
+            berr = True
+        # Mutation guided by rejected strings
+        s = rej_strs[0][0]
 
-    (lines, clines, vrs) = argtracer.trace(arg, s)
+        (lines, clines, vrs, err) = argtracer.trace(arg, s)
 
-    delta = get_diff(b_clines, clines)
+        delta = get_diff(b_clines, clines) if not berr else []
 
-    print("Used string:", repr(s))
-    print("Executed conditions:", clines)
-    print("Difference to base:", delta)
-    print("")
-    if (was_manually_raised(arg, lines[0])):
-        for fix in make_new_conditions(delta[0], arg, b_vrs, vrs):
-            mods = {
-                lines[0] : fix
-                }
-            file_copy_replace(mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py", arg, mods)
-            mut_cnt += 1
-    else:
-        print("Mutation complete.")
+        print("Used string:", repr(s))
+        print("Executed conditions:", clines)
+        print("Difference to base:", delta)
+        print("")
+        if not berr and err and (was_manually_raised(arg, lines[0])):
+            for fix in make_new_conditions(delta[0], arg, b_vrs, vrs):
+                mods = {
+                    lines[0] : fix
+                    }
+                cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
+                queue.append(cand)
+                file_copy_replace(cand, arg, mods)
+                mut_cnt += 1
+        else:
+            completed.append(arg)
+            print("Mutation complete:", cand)
+
+    print()
+    print("Done. The final mutants are in:", mut_dir)
+    

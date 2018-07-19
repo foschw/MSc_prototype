@@ -15,7 +15,7 @@ RE_if = re.compile(r'^\s*(if|elif)\s+([^:]|(:[^\s]))+:\s.*')
 
 @functools.lru_cache(maxsize=None)
 def get_code_from_file(arg, linenum):
-    with open(arg) as fp:
+    with open(arg, "r", encoding="UTF-8") as fp:
         for i, line in enumerate(fp):
             if i+1 == linenum:
                 return line
@@ -82,6 +82,7 @@ def trace(arg, inpt):
     ar = arg
     lines = []
     vrs = {}
+    err = False
     _mod = imp.load_source('mymod', arg)
     global fl
     fl = arg.replace("\\", "/")
@@ -93,5 +94,6 @@ def trace(arg, inpt):
     except:
         sys.settrace(None)
         traceback.print_exc()
+        err = True
     sys.settrace(None)
-    return (lines.copy(), clines.copy(), vrs.copy())
+    return (lines.copy(), clines.copy(), vrs.copy(), err)
