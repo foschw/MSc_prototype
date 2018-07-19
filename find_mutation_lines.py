@@ -30,7 +30,7 @@ def get_diff(lst1, lst2):
             diff.append(e)
     return diff
 
-def make_new_condition(old_cond, file, b_varsat, varsat):
+def make_new_conditions(old_cond, file, b_varsat, varsat):
     (lineno, state) = old_cond
     full_str = get_code_from_file(file, lineno)
     cond_str = extract_from_condition(full_str)
@@ -50,18 +50,33 @@ def make_new_condition(old_cond, file, b_varsat, varsat):
         new_cond = "(" + cond_str + ") or " + valid_cond
     return (full_str.replace(cond_str, new_cond), full_str.replace(cond_str, valid_cond))
 
+def file_copy_replace(target, source, modifications):
+    with open(target, "w") as trgt:
+        with open(source, "r") as src:
+            for i, line in enumerate(src):
+                if modifications.get(i+1):
+                    trgt.write(modifications[i+1])
+                else:
+                    trgt.write(line)
+    
 if __name__ == "__main__":
     arg = sys.argv[1]
     arg = arg.replace("\\", "/")
     mut_dir = arg[arg.rfind("/")+1:arg.rfind(".")] if arg.rfind("/") >= 0 else arg[:arg.rfind(".")]
-    mut_dir = "mutants/" + mut_dir
+    script_name = mut_dir
+    mut_dir = "mutants/" + mut_dir + "/"
     if not os.path.exists(mut_dir):
         os.makedirs(mut_dir)
     else:
-        for fl in glob.glob(mut_dir + "/*"):
+        for fl in glob.glob(mut_dir + "*"):
             os.remove(fl)
 
-    mut_dir = "mutants/" + mut_dir
+    # Index of the string currently processed
+    str_cnt = 0
+    # Mutation counter
+    # int(mut_cnt/2) is the number of modified conditions
+    # mut_cnt%2 is the path relative to make_new_positions
+    mut_cnt = 0
     pick_file = sys.argv[2] if len(sys.argv) > 2 else "rejected.bin"
     pick_handle = open(pick_file, 'rb')
     rej_strs = pickle.load(pick_handle)
@@ -69,7 +84,6 @@ if __name__ == "__main__":
     # Get base values from the non-crashing run with the longest input
     basein = ""
     for cand in rej_strs:
-        print(cand)
         basein = cand[1] if len(cand[1]) > len(basein) else basein
 
     (_, b_clines, b_vrs) = argtracer.trace(arg, basein)
@@ -81,18 +95,16 @@ if __name__ == "__main__":
 
     delta = get_diff(b_clines, clines)
 
-    print("______________")
-    print("Executed conditions:", b_clines)
-    print("Available variables", b_vrs)
-    print("______________")
     print("Used string:", repr(s))
-    print("Executed lines:", lines)
     print("Executed conditions:", clines)
-    print("Available strings:", vrs)
     print("Difference to base:", delta)
     print("")
     if (was_manually_raised(arg, lines[0])):
-        for fix in make_new_condition(delta[0], arg, b_vrs, vrs):
-            print("Possible fix:", fix)
+        for fix in make_new_conditions(delta[0], arg, b_vrs, vrs):
+            mods = {
+                lines[0] : fix
+                }
+            file_copy_replace(mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py", arg, mods)
+            mut_cnt += 1
     else:
         print("Mutation complete.")
