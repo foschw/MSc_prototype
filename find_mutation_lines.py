@@ -95,6 +95,7 @@ if __name__ == "__main__":
 
     (_, b_clines, b_vrs, _) = argtracer.trace(arg, basein)
 
+    print("Used baseinput:", basein)
     completed = []
 
     for s in rej_strs:
