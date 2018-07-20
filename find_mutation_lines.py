@@ -18,18 +18,18 @@ RE_raise = re.compile(r'(^|\s+)raise\s+')
 def was_manually_raised(file, lineno):
     return True if RE_raise.search(get_code_from_file(file, lineno)) else False
 
-def get_diff(lst1, lst2):
-    diff = []
-    if len(lst1) >= len(lst2):
-        l1 = lst1
-        l2 = lst2
-    else:
-        l1 = lst2
-        l2 = lst1
+def get_left_diff(l1, l2):
+    prim = []
+    sec = []
+    lns = [i[0] for i in l2]
     for e in l1:
-        if e not in l2:
-            diff.append(e)
-    return diff
+        if e not in l2 and e not in prim and e not in sec:
+            if e[0] in lns:
+                prim.append(e)
+            else:
+                sec.append(e)
+            
+    return (prim, sec)
 
 def make_new_conditions(old_cond, file, b_varsat, varsat):
     (lineno, state) = old_cond
@@ -65,8 +65,6 @@ def cleanup(mut_dir, completed):
         fl = fl.replace("\\", "/")
         if fl not in completed:
             os.remove(fl)
-
-        
 
 if __name__ == "__main__":
     arg = sys.argv[1]
@@ -118,26 +116,29 @@ if __name__ == "__main__":
 
             (lines, clines, vrs, err) = argtracer.trace(arg, s)
 
-            delta = get_diff(b_clines, clines) if not berr else []
+            (prim, sec) = get_left_diff(clines, b_clines) if not berr else ([],[])
 
+            print("Current script:", arg)
             print("Used string:", repr(s))
             print("Executed conditions:", clines)
-            print("Difference to base:", delta)
+            print("Difference to base (flipped):", prim)
+            print("Difference to base (new):", sec)
             print("Final line:", str(lines[0]))
             print("")
-            cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
             if not berr and err and (was_manually_raised(arg, lines[0])):
-                for fix in make_new_conditions(delta[0], arg, b_vrs, vrs):
+                fix_element = prim[0] if prim else sec[0]
+                for fix in make_new_conditions(fix_element, arg, b_vrs, vrs):
+                    cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
                     mods = {
-                        lines[0] : fix
+                        fix_element[0] : fix
                         }
                     queue.append(cand)
                     file_copy_replace(cand, arg, mods)
                     mut_cnt += 1
             else:
-                print("Exception manually raised:", was_manually_raised(arg, lines[0]))
-                completed.append(arg)
-                print("Mutation complete:", cand)
+                print("Base rejected:", berr, ", manual:", was_manually_raised(arg, lines[0]))
+                if arg not in completed: completed.append(arg)
+                print("Mutation complete:", arg)
         str_cnt += 1
         print()
     cleanup(mut_dir, completed)
