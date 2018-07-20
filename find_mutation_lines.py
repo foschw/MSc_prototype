@@ -104,7 +104,11 @@ if __name__ == "__main__":
             arg = queue.pop(0)
             berr = False
             # Check whether the chosen correct string is now rejected
-            _mod = imp.load_source('mymod', arg)
+            try:
+                _mod = imp.load_source('mymod', arg)
+            except:
+                print("Discarded script:", arg)
+                continue
             try:
                 _mod.main(basein)
             except:
