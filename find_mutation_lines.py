@@ -118,20 +118,23 @@ if __name__ == "__main__":
             print("Used string:", repr(s))
             print("Executed conditions:", clines)
             print("Difference to base:", delta)
+            print("Final line:", str(lines[0]))
             print("")
+            cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
             if not berr and err and (was_manually_raised(arg, lines[0])):
                 for fix in make_new_conditions(delta[0], arg, b_vrs, vrs):
                     mods = {
                         lines[0] : fix
                         }
-                    cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
                     queue.append(cand)
                     file_copy_replace(cand, arg, mods)
                     mut_cnt += 1
             else:
+                print("Exception manually raised:", was_manually_raised(arg, lines[0]))
                 completed.append(arg)
                 print("Mutation complete:", cand)
         str_cnt += 1
         print()
+    cleanup(mut_dir, completed)
     print("Done. The final mutants are in:", mut_dir)
     
