@@ -119,11 +119,11 @@ if __name__ == "__main__":
         print("Execution timed out on basestring! Try increasing timeout (", timeout,")")
 
     print("Used baseinput:", repr(basein))
-    completed = []
 
     for s in rej_strs:
         s = s[0]
         queue = [(ar1, [])]
+        discarded = set()
         while queue:
             print("Entering loop...")
             (arg, history) = queue.pop(0)
@@ -133,12 +133,14 @@ if __name__ == "__main__":
                 _mod = imp.load_source('mymod', arg)
             except:
                 print("Discarded script:", arg)
+                discarded.add(arg)
                 continue
             print("Executing basestring...")
             try:
                 argtracer.trace(arg, basein, timeout=timeout)
             except Timeout:
                 print("Discarding,", arg, "due to timeout")
+                discarded.add(arg)
                 continue
             except:
                 berr = True
@@ -161,6 +163,7 @@ if __name__ == "__main__":
             prim = [e for e in prim if e[0] not in history]
             sec = [e for e in sec if e[0] not in history]
             if not berr and err and (was_manually_raised(arg, lines[0])):
+                discarded.add(arg)
                 for (linenum, fixes) in get_possible_fixes((prim, sec), arg, b_vrs, vrs):
                     for fix in fixes:
                         cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
@@ -174,11 +177,13 @@ if __name__ == "__main__":
                         mut_cnt += 1
             else:
                 print("Base rejected:", berr, ", manual:", was_manually_raised(arg, lines[0]))
-                if arg not in completed: completed.append(arg)
                 print("Mutation complete:", arg)
+        discarded.discard(ar1)
+        for scrpt in discarded:
+            print("Removed:", scrpt)
+            os.remove(scrpt)
         str_cnt += 1
         mut_cnt = 0
         print()
-    cleanup(mut_dir, completed)
     print("Done. The final mutants are in:", mut_dir)
     
