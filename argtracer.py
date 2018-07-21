@@ -5,13 +5,19 @@ import traceback
 import taintedstr
 import re
 import functools
+from timeit import default_timer as timer
 
 clines = []
 lines = []
 vrs = {}
 ar = ""
+timeo = None
+time_start = None
 
 RE_if = re.compile(r'^\s*(if|elif)\s+([^:]|(:[^\s]))+:\s.*')
+
+class Timeout(Exception):
+    pass
 
 @functools.lru_cache(maxsize=None)
 def get_code_from_file(arg, linenum):
@@ -55,7 +61,13 @@ def line_tracer(frame, event, arg):
         global clines
         global fl
         global ar
+        global timeo
+        global time_start
         if fl in frame.f_code.co_filename:
+            if timeo:
+                end = timer()
+                if (end - time_start) >= timeo:
+                    raise Timeout("Execution timed out!")
             lines.insert(0, frame.f_lineno)
             res = get_code_from_file(ar, frame.f_lineno)
             if res and RE_if.match(res):
@@ -75,10 +87,18 @@ def line_tracer(frame, event, arg):
 
     return line_tracer
 
-def trace(arg, inpt):
+def trace(arg, inpt, timeout=None):
     global lines
     global vrs
     global ar
+    global timeo
+    global time_start
+    if timeout:
+        time_start = timer()
+        timeo = timeout
+    else:
+        timeo = None
+        time_start = None
     ar = arg
     lines = []
     vrs = {}
