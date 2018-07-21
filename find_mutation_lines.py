@@ -123,10 +123,10 @@ if __name__ == "__main__":
 
     for s in rej_strs:
         s = s[0]
-        queue = [ar1]
+        queue = [(ar1, [])]
         while queue:
             print("Entering loop...")
-            arg = queue.pop(0)
+            (arg, history) = queue.pop(0)
             berr = False
             # Check whether the chosen correct string is now rejected
             try:
@@ -151,13 +151,15 @@ if __name__ == "__main__":
                 continue
 
             (prim, sec) = get_left_diff(clines, b_clines) if not berr else ([],[])
-
             print("Current script:", arg)
             print("Used string:", repr(s))
             print("Difference to base (flipped):", prim)
             print("Difference to base (new):", sec)
             print("Final line:", str(lines[0]))
             print("")
+            print(history)
+            prim = [e for e in prim if e[0] not in history]
+            sec = [e for e in sec if e[0] not in history]
             if not berr and err and (was_manually_raised(arg, lines[0])):
                 for (linenum, fixes) in get_possible_fixes((prim, sec), arg, b_vrs, vrs):
                     for fix in fixes:
@@ -165,7 +167,7 @@ if __name__ == "__main__":
                         mods = {
                             linenum : fix
                             }
-                        queue.append(cand)
+                        queue.append((cand, history.copy()+[linenum]))
                         print("Starting copy...")
                         file_copy_replace(cand, arg, mods)
                         print("Copy done (", str(mut_cnt),")")
@@ -175,6 +177,7 @@ if __name__ == "__main__":
                 if arg not in completed: completed.append(arg)
                 print("Mutation complete:", arg)
         str_cnt += 1
+        mut_cnt = 0
         print()
     cleanup(mut_dir, completed)
     print("Done. The final mutants are in:", mut_dir)
