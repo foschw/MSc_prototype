@@ -36,16 +36,18 @@ def make_new_conditions(old_cond, file, b_varsat, varsat):
     full_str = get_code_from_file(file, lineno)
     cond_str = extract_from_condition(full_str)
     # Conditions that hold for the last execution of the line and not for the baseline run
-    easy_sat = [i for i in varsat[lineno][1] if i not in b_varsat[lineno]] if b_varsat.get(lineno) else varsat[lineno][1]
-    valid_cond = random.choice(easy_sat) if easy_sat else None
-    if not valid_cond:
-        # Conditions that hold for all iterations over the line
-        choices = [i for i in varsat[lineno][0] if i not in b_varsat[lineno]] if b_varsat.get(lineno) else None
-        if choices: valid_cond = random.choice(choices)
+    lcand = varsat.get(lineno)[1] if varsat.get(lineno) else None
+    if lcand:
+        rcand = b_varsat[lineno][1] if b_varsat.get(lineno) else []
+    else:
+        lcand = varsat.get(lineno)[0] if varsat.get(lineno) else None
+        if not lcand: return None
         else:
-        # Conditions that *always* hold for the given line
-            choices = [i for i in varsat[lineno][0] + varsat[lineno][1]]
-            valid_cond = random.choice(choices)
+            rcand = b_varsat[lineno][0] if b_varsat.get(lineno) else []
+
+    choices = [i for i in lcand if i not in rcand]
+    print("Possible choices:", choices)
+    valid_cond = random.choice(choices)
     if state:
         # Falsify the condition
         valid_cond = valid_cond[0] + " != \"" + valid_cond[1] + "\""
@@ -61,10 +63,12 @@ def get_possible_fixes(delta, file, b_varsat, varsat):
     fixmap = []
     if prim:
         for (lineno, state) in prim:
-            fixmap.append((lineno, make_new_conditions((lineno,state),file,b_varsat,varsat)))
+            cand = make_new_conditions((lineno,state),file,b_varsat,varsat)
+            if cand: fixmap.append((lineno, cand))
     elif sec:
         for (lineno, state) in sec:
-            fixmap.append((lineno, make_new_conditions((lineno,state),file,b_varsat,varsat)))
+            cand = make_new_conditions((lineno,state),file,b_varsat,varsat)
+            if cand: fixmap.append((lineno, cand))
     return fixmap
 
 def file_copy_replace(target, source, modifications):
@@ -121,6 +125,7 @@ if __name__ == "__main__":
         s = s[0]
         queue = [ar1]
         while queue:
+            print("Entering loop...")
             arg = queue.pop(0)
             berr = False
             # Check whether the chosen correct string is now rejected
@@ -129,10 +134,15 @@ if __name__ == "__main__":
             except:
                 print("Discarded script:", arg)
                 continue
+            print("Executing basestring...")
             try:
-                _mod.main(basein)
+                argtracer.trace(arg, basein, timeout=timeout)
+            except Timeout:
+                print("Discarding,", arg, "due to timeout")
+                continue
             except:
                 berr = True
+            print("Base done.")
             # Mutation guided by rejected strings
 
             try:
@@ -156,7 +166,9 @@ if __name__ == "__main__":
                             linenum : fix
                             }
                         queue.append(cand)
+                        print("Starting copy...")
                         file_copy_replace(cand, arg, mods)
+                        print("Copy done (", str(mut_cnt),")")
                         mut_cnt += 1
             else:
                 print("Base rejected:", berr, ", manual:", was_manually_raised(arg, lines[0]))

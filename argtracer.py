@@ -72,8 +72,12 @@ def line_tracer(frame, event, arg):
             res = get_code_from_file(ar, frame.f_lineno)
             if res and RE_if.match(res):
                 cond = extract_from_condition(res)
-                bval = eval(cond, frame.f_globals, frame.f_locals)
-                clines.insert(0, (frame.f_lineno, bval))
+                try:
+                    bval = eval(cond, frame.f_globals, frame.f_locals)
+                    clines.insert(0, (frame.f_lineno, bval))
+                except:
+                    # This is not a good idea, but better than crashin for now
+                    pass
                 global vrs
                 vass = vrs.get(frame.f_lineno)[0] if vrs.get(frame.f_lineno) else []
                 vass_curr = []
