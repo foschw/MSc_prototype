@@ -36,14 +36,10 @@ def make_new_conditions(old_cond, file, b_varsat, varsat):
     full_str = get_code_from_file(file, lineno)
     cond_str = extract_from_condition(full_str)
     # Conditions that hold for the last execution of the line and not for the baseline run
-    lcand = varsat.get(lineno)[1] if varsat.get(lineno) else None
+    lcand = varsat.get(lineno) if varsat.get(lineno) else None
     if lcand:
-        rcand = b_varsat[lineno][1] if b_varsat.get(lineno) else []
-    else:
-        lcand = varsat.get(lineno)[0] if varsat.get(lineno) else None
-        if not lcand: return None
-        else:
-            rcand = b_varsat[lineno][0] if b_varsat.get(lineno) else []
+        rcand = b_varsat[lineno] if b_varsat.get(lineno) else []
+    else: return None
 
     choices = [i for i in lcand if i not in rcand]
     print("Possible choices:", choices)
@@ -159,7 +155,7 @@ if __name__ == "__main__":
             print("Difference to base (new):", sec)
             print("Final line:", str(lines[0]))
             print("")
-            print(history)
+            print("Change history:", history)
             prim = [e for e in prim if e[0] not in history]
             sec = [e for e in sec if e[0] not in history]
             if not berr and err and (was_manually_raised(arg, lines[0])):
@@ -184,6 +180,9 @@ if __name__ == "__main__":
             os.remove(scrpt)
         str_cnt += 1
         mut_cnt = 0
-        print()
+        print("Processing string number:", str(str_cnt), "/", str(len(rej_strs)))
     print("Done. The final mutants are in:", mut_dir)
-    
+    print("The used inputs were:")
+    for i in range(len(rej_strs)):
+        print(i, ":", repr(rej_strs[i][0]))
+    print("The baseinput was:", repr(basein))

@@ -76,18 +76,17 @@ def line_tracer(frame, event, arg):
                     bval = eval(cond, frame.f_globals, frame.f_locals)
                     clines.insert(0, (frame.f_lineno, bval))
                 except:
-                    # This is not a good idea, but better than crashin for now
+                    # This is not a good idea, but better than crashing for now
                     pass
                 global vrs
-                vass = vrs.get(frame.f_lineno)[0] if vrs.get(frame.f_lineno) else []
-                vass_curr = []
+                vass = vrs.get(frame.f_lineno) if vrs.get(frame.f_lineno) else []
+                avail = [v for v in vass[0]] if vass else None
                 for var in frame.f_locals.keys():
                     val = frame.f_locals[var]
                     if type(val) == type(taintedstr.tstr('')):
-                        if (var,val) not in vass:                    
-                            vass_curr.append((var,val))
-                        vass.append((var, val))
-                vrs[frame.f_lineno] = (vass, vass_curr)
+                        if not avail or var in avail and (var,val) not in vass:
+                            vass.append((var, val))
+                vrs[frame.f_lineno] = vass
 
     return line_tracer
 
