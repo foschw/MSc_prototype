@@ -7,6 +7,7 @@ import re
 import argtracer
 import functools
 from argtracer import get_code_from_file, extract_from_condition
+from argtracer import Timeout as Timeout
 import random
 import os
 import glob
@@ -47,7 +48,7 @@ def make_new_conditions(old_cond, file, b_varsat, varsat):
     if state:
         # Falsify the condition
         valid_cond = valid_cond[0] + " != \"" + valid_cond[1] + "\""
-        new_cond = "(" + cond_str + ") and " + valid_cond
+        new_cond = "(" + cond_str + ") and " + valid_cond + "\""
     else:
         # Satisfy the condition
         valid_cond = valid_cond[0] + " == \"" + valid_cond[1] + "\""
@@ -112,7 +113,7 @@ if __name__ == "__main__":
     try:
         (_, b_clines, b_vrs, _) = argtracer.trace(arg, basein, timeout=timeout)
     except Timeout:
-        print("Execution timed out on basestring! Try increasing timeout (", timeout,")")
+        print("Execution timed out on basestring! Try increasing timeout (currently", timeout," seconds)")
 
     print("Used baseinput:", repr(basein))
 
@@ -157,7 +158,12 @@ if __name__ == "__main__":
             print("Final line:", str(lines[0]))
             print("")
             print("Change history:", history)
-            prim = [e for e in prim if e[0] not in history]
+            prim = []
+            for e in prim:
+                if e[0] in history:
+                    print("Warning: Condition in line:", e[0], "may be unstable!")
+                else:
+                    prim.append(e)
             sec = [e for e in sec if e[0] not in history]
             if not berr and err and (was_manually_raised(arg, lines[0])):
                 discarded.add(arg)
@@ -168,9 +174,7 @@ if __name__ == "__main__":
                             linenum : fix
                             }
                         queue.append((cand, history.copy()+[linenum]))
-                        print("Starting copy...")
                         file_copy_replace(cand, arg, mods)
-                        print("Copy done (", str(mut_cnt),")")
                         mut_cnt += 1
             else:
                 print("Base rejected:", berr, ", manual:", was_manually_raised(arg, lines[0]))
@@ -183,7 +187,7 @@ if __name__ == "__main__":
         mut_cnt = 0
         print("Processing string number:", str(str_cnt), "/", str(len(rej_strs)))
     print("Done. The final mutants are in:", mut_dir)
-    print("The used inputs were:")
-    for i in range(len(rej_strs)):
-        print(i, ":", repr(rej_strs[i][0]))
-    print("The baseinput was:", repr(basein))
+    with open("mutants/lastrun.py", "w", encoding="UTF-8") as file:
+            for i in range(len(rej_strs)):
+                file.write(str(i) + ": " + repr(rej_strs[i][0])+"\n")
+            file.write("The baseinput was:" + repr(basein))

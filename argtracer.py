@@ -7,7 +7,7 @@ import re
 import functools
 from timeit import default_timer as timer
 
-clines = []
+cond_dict = {}
 lines = []
 vrs = {}
 ar = ""
@@ -58,11 +58,11 @@ def extract_from_condition(cond):
 def line_tracer(frame, event, arg):
     if event == 'line':
         global lines
-        global clines
         global fl
         global ar
         global timeo
         global time_start
+        global cond_dict
         if fl in frame.f_code.co_filename:
             if timeo:
                 end = timer()
@@ -74,9 +74,15 @@ def line_tracer(frame, event, arg):
                 cond = extract_from_condition(res)
                 try:
                     bval = eval(cond, frame.f_globals, frame.f_locals)
-                    clines.insert(0, (frame.f_lineno, bval))
+                    if cond_dict.get(frame.f_lineno):
+                        cond_dict[frame.f_lineno].add(bval)
+                    else:
+                        cond_set = set()
+                        cond_set.add(bval)
+                        cond_dict[frame.f_lineno] = cond_set
                 except:
                     # This is not a good idea, but better than crashing for now
+                    print("Warning: unable to infer condition result in line:", frame.f_lineno)
                     pass
                 global vrs
                 vass = vrs.get(frame.f_lineno) if vrs.get(frame.f_lineno) else []
@@ -96,6 +102,7 @@ def trace(arg, inpt, timeout=None):
     global ar
     global timeo
     global time_start
+    global cond_dict
     if timeout:
         time_start = timer()
         timeo = timeout
@@ -103,6 +110,7 @@ def trace(arg, inpt, timeout=None):
         timeo = None
         time_start = None
     ar = arg
+    clines = []
     lines = []
     vrs = {}
     err = False
@@ -122,4 +130,8 @@ def trace(arg, inpt, timeout=None):
         traceback.print_exc()
         err = True
     sys.settrace(None)
-    return (lines.copy(), clines.copy(), vrs.copy(), err)
+    for lne in cond_dict.keys():
+        bval = cond_dict[lne]
+        if len(bval) == 1:
+            clines.append((lne, cond_dict[lne].pop()))
+    return (lines.copy(), clines, vrs.copy(), err)
