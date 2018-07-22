@@ -114,6 +114,9 @@ def trace(arg, inpt, timeout=None):
     try:
         sys.settrace(line_tracer)
         res = _mod.main(inpt)
+    except Timeout:
+        sys.settrace(None)
+        raise
     except:
         sys.settrace(None)
         traceback.print_exc()

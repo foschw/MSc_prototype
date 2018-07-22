@@ -134,7 +134,7 @@ if __name__ == "__main__":
             print("Executing basestring...")
             try:
                 argtracer.trace(arg, basein, timeout=timeout)
-            except Timeout:
+            except argtracer.Timeout:
                 print("Discarding,", arg, "due to timeout")
                 discarded.add(arg)
                 continue
@@ -145,7 +145,8 @@ if __name__ == "__main__":
 
             try:
                 (lines, clines, vrs, err) = argtracer.trace(arg, s, timeout=timeout)
-            except Timeout:
+            except argtracer.Timeout:
+                discarded.add(arg)
                 continue
 
             (prim, sec) = get_left_diff(clines, b_clines) if not berr else ([],[])
