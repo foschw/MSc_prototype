@@ -95,7 +95,7 @@ def line_tracer(frame, event, arg):
                     val = frame.f_locals[var]
                     if type(val) == target_type:
                         if not avail or var in avail and (var,val) not in vass:
-                            vass.append((var, val))
+                            vass.append((var, str(val)))
                 vrs[frame.f_lineno] = vass
 
     return line_tracer
