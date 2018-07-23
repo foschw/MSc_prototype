@@ -13,6 +13,9 @@ vrs = {}
 ar = ""
 timeo = None
 time_start = None
+# target_type = type("")
+# By using the commented line instead we get a seizable improvement in execution time but may consume more memory
+target_type = type(taintedstr.tstr(''))
 
 RE_if = re.compile(r'^\s*(if|elif)\s+([^:]|(:[^\s]))+:\s.*')
 
@@ -63,6 +66,7 @@ def line_tracer(frame, event, arg):
         global timeo
         global time_start
         global cond_dict
+        global target_type
         if fl in frame.f_code.co_filename:
             if timeo:
                 end = timer()
@@ -89,10 +93,7 @@ def line_tracer(frame, event, arg):
                 avail = [v for v in vass[0]] if vass else None
                 for var in frame.f_locals.keys():
                     val = frame.f_locals[var]
-                    # By doing
-                    # if type(val) == type(""):
-                    # instead we get a seizable improvement in execution time but may consume more memory
-                    if type(val) == type(taintedstr.tstr('')):
+                    if type(val) == target_type:
                         if not avail or var in avail and (var,val) not in vass:
                             vass.append((var, val))
                 vrs[frame.f_lineno] = vass
@@ -117,6 +118,8 @@ def trace(arg, inpt, timeout=None):
     lines = []
     vrs = {}
     err = False
+    # Modify this case if you want to use a different type here (e.g. when using str)
+    inpt = taintedstr.tstr(inpt)
     _mod = imp.load_source('mymod', arg)
     global fl
     fl = arg.replace("\\", "/")
