@@ -53,7 +53,11 @@ def make_new_conditions(old_cond, file, b_varsat, varsat):
         # Satisfy the condition
         valid_cond = valid_cond[0] + " == \"" + valid_cond[1] + "\""
         new_cond = "(" + cond_str + ") or " + valid_cond
-    return (full_str.replace(cond_str, new_cond), full_str.replace(cond_str, valid_cond))
+        
+    cond_idx = full_str.find(cond_str)
+    nc1 = full_str[0:cond_idx] + new_cond + full_str[cond_idx+len(cond_str):]
+    nc2 = full_str[0:cond_idx] + valid_cond + full_str[cond_idx+len(cond_str):]
+    return (str(nc1), str(nc2))
 
 def get_possible_fixes(delta, file, b_varsat, varsat):
     (prim, sec) = delta
