@@ -32,6 +32,9 @@ def get_left_diff(l1, l2):
             
     return (prim, sec)
 
+def sanitize(valuestring):
+    return '"' + repr(valuestring)[1:-1] + '"'
+
 def make_new_conditions(old_cond, file, b_varsat, varsat):
     (lineno, state) = old_cond
     full_str = get_code_from_file(file, lineno)
@@ -47,11 +50,11 @@ def make_new_conditions(old_cond, file, b_varsat, varsat):
     valid_cond = random.choice(choices)
     if state:
         # Falsify the condition
-        valid_cond = valid_cond[0] + " != \"" + valid_cond[1] + "\""
-        new_cond = "(" + cond_str + ") and " + valid_cond + "\""
+        valid_cond = valid_cond[0] + " != " + sanitize(valid_cond[1])
+        new_cond = "(" + cond_str + ") and " + valid_cond
     else:
         # Satisfy the condition
-        valid_cond = valid_cond[0] + " == \"" + valid_cond[1] + "\""
+        valid_cond = valid_cond[0] + " == " + sanitize(valid_cond[1])
         new_cond = "(" + cond_str + ") or " + valid_cond
         
     cond_idx = full_str.find(cond_str)
