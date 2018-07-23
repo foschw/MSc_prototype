@@ -33,7 +33,7 @@ def get_left_diff(l1, l2):
     return (prim, sec)
 
 def sanitize(valuestring):
-    return '"' + repr(valuestring)[1:-1] + '"'
+    return repr(valuestring)
 
 def make_new_conditions(old_cond, file, b_varsat, varsat):
     (lineno, state) = old_cond
@@ -116,7 +116,6 @@ if __name__ == "__main__":
     basein = ""
     for cand in rej_strs:
         basein = cand[1] if len(cand[1]) > len(basein) else basein
-
     try:
         (_, b_clines, b_vrs, _) = argtracer.trace(arg, basein, timeout=timeout)
     except Timeout:
@@ -131,7 +130,6 @@ if __name__ == "__main__":
         while queue:
             print("Entering loop...")
             (arg, history) = queue.pop(0)
-            berr = False
             # Check whether the chosen correct string is now rejected
             try:
                 _mod = imp.load_source('mymod', arg)
@@ -141,13 +139,11 @@ if __name__ == "__main__":
                 continue
             print("Executing basestring...")
             try:
-                argtracer.trace(arg, basein, timeout=timeout)
+                (_, _, _, berr) = argtracer.trace(arg, basein, timeout=timeout)
             except argtracer.Timeout:
                 print("Discarding,", arg, "due to timeout")
                 discarded.add(arg)
                 continue
-            except:
-                berr = True
             print("Base done.")
             # Mutation guided by rejected strings
 
@@ -165,12 +161,10 @@ if __name__ == "__main__":
             print("Final line:", str(lines[0]))
             print("")
             print("Change history:", history)
-            prim = []
+            print("Base rejected:", berr)
             for e in prim:
                 if e[0] in history:
                     print("Warning: Condition in line:", e[0], "may be unstable!")
-                else:
-                    prim.append(e)
             sec = [e for e in sec if e[0] not in history]
             if not berr and err and (was_manually_raised(arg, lines[0])):
                 discarded.add(arg)
