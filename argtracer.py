@@ -89,6 +89,9 @@ def line_tracer(frame, event, arg):
                 avail = [v for v in vass[0]] if vass else None
                 for var in frame.f_locals.keys():
                     val = frame.f_locals[var]
+                    # By doing
+                    # if type(val) == type(""):
+                    # instead we get a seizable improvement in execution time but may consume more memory
                     if type(val) == type(taintedstr.tstr('')):
                         if not avail or var in avail and (var,val) not in vass:
                             vass.append((var, val))
