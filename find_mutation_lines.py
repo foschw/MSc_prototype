@@ -27,7 +27,7 @@ def get_left_diff(d1, d2):
         s2 = d2.get(e)
         if s2:
             if len(s1) == 2 and len(s2) == 1:
-                prim.append((e, s1.difference(s2)))
+                prim.append((e, s1.difference(s2).pop()))
             elif len(s1) == 1 and len(s2) == 1 and len(s1.intersection(s2)) == 0:
                 prim.append((e, s1.pop()))
                 
@@ -153,7 +153,9 @@ if __name__ == "__main__":
                 print("Discarding,", arg, "due to timeout")
                 discarded.add(arg)
                 continue
+            
             print("Base done.")
+
             # Mutation guided by rejected strings
 
             try:
@@ -161,8 +163,14 @@ if __name__ == "__main__":
             except argtracer.Timeout:
                 discarded.add(arg)
                 continue
+            # Moved this condition after the second call to make missing infinite loops less likely
+            if berr:
+                print("Mutation complete:", arg)
+                continue
 
             (prim, sec) = get_left_diff(cdict, b_cdict) if not berr else ([],[])
+            prim = [e for e in prim if e[0] not in history]
+            sec = [e for e in sec if e[0] not in history]
             print("Current script:", arg)
             print("Used string:", repr(s))
             print("Difference to base (flipped):", prim)
@@ -171,9 +179,8 @@ if __name__ == "__main__":
             print("")
             print("Change history:", history)
             print("Base rejected:", berr)
-            prim = [e for e in prim if e[0] not in history]
-            sec = [e for e in sec if e[0] not in history]
-            if not berr and err and (was_manually_raised(arg, lines[0])):
+            if err and (was_manually_raised(arg, lines[0])):
+                print("Mutating:", arg, "error raised manually: True")
                 discarded.add(arg)
                 for (linenum, fixes) in get_possible_fixes((prim, sec), arg, b_vrs, vrs):
                     for fix in fixes:
@@ -184,9 +191,6 @@ if __name__ == "__main__":
                         queue.append((cand, history.copy()+[linenum]))
                         file_copy_replace(cand, arg, mods)
                         mut_cnt += 1
-            else:
-                print("Base rejected:", berr, ", manual:", was_manually_raised(arg, lines[0]))
-                print("Mutation complete:", arg)
         discarded.discard(ar1)
         for scrpt in discarded:
             print("Removed:", scrpt)
