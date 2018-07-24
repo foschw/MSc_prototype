@@ -116,8 +116,9 @@ def trace(arg, inpt, timeout=None):
     ar = arg
     lines = []
     vrs = {}
+    cond_dict = {}
     err = False
-    # Modify this case if you want to use a different type here (e.g. when using str)
+    # Modify this cast if you want to use a different type here (e.g. when using str)
     inpt = taintedstr.tstr(inpt)
     _mod = imp.load_source('mymod', arg)
     global fl
