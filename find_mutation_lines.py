@@ -46,8 +46,13 @@ def make_new_conditions(old_cond, file, b_varsat, varsat):
     else: return None
 
     choices = [i for i in lcand if i not in rcand]
+    stable = {}
+    for i in choices:
+        stable[i[0]] = i[1] if not stable.get(i[0]) or stable.get(i[0]) == i[1] else -1
+    stable = [i for i in choices if type(stable[i[0]]) != type(1)]
     print("Possible choices:", choices)
-    valid_cond = random.choice(choices)
+    print("Stable choices:", stable)
+    valid_cond = random.choice(stable) if stable else random.choice(choices)
     if state:
         # Falsify the condition
         valid_cond = valid_cond[0] + " != " + sanitize(valid_cond[1])
