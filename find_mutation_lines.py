@@ -19,33 +19,25 @@ RE_raise = re.compile(r'(^|\s+)raise\s+')
 def was_manually_raised(file, lineno):
     return True if RE_raise.search(get_code_from_file(file, lineno)) else False
 
-def get_left_diff(l1, l2):
+def get_left_diff(d1, d2):
     prim = []
     sec = []
-    lns = [i[0] for i in l2]
-    for e in l1:
-        if e not in l2 and e not in prim and e not in sec:
-            if e[0] in lns:
-                prim.append(e)
-            else:
-                sec.append(e)
-            
+    for e in d1.keys():
+        s1 = d1[e]
+        s2 = d2.get(e)
+        if s2:
+            if len(s1) == 2 and len(s2) == 1:
+                prim.append((e, s1.difference(s2)))
+            elif len(s1) == 1 and len(s2) == 1 and len(s1.intersection(s2)) == 0:
+                prim.append((e, s1.pop()))
+                
+        elif len(s1) == 1:
+            sec.append((e,s1.pop()))
+
     return (prim, sec)
 
 def sanitize(valuestring):
     return repr(valuestring)
-
-def list_from_dict(cond_dict, unpack):
-    clines = []
-    for lne in cond_dict.keys():
-        bval = cond_dict[lne]
-        if len(bval) == 1:
-            clines.append((lne, cond_dict[lne].pop()))
-        elif unpack and len(bval) == 2:
-            clines.append((lne, True))
-            clines.append((lne, False))
-    return clines
-
 
 def make_new_conditions(old_cond, file, b_varsat, varsat):
     (lineno, state) = old_cond
@@ -134,8 +126,7 @@ if __name__ == "__main__":
     for cand in rej_strs:
         basein = cand[1] if len(cand[1]) > len(basein) else basein
     try:
-        (_, b_clines, b_vrs, _) = argtracer.trace(arg, basein, timeout=timeout)
-        b_clines = list_from_dict(b_clines, False)
+        (_, b_cdict, b_vrs, _) = argtracer.trace(arg, basein, timeout=timeout)
     except Timeout:
         print("Execution timed out on basestring! Try increasing timeout (currently", timeout," seconds)")
 
@@ -166,13 +157,12 @@ if __name__ == "__main__":
             # Mutation guided by rejected strings
 
             try:
-                (lines, clines, vrs, err) = argtracer.trace(arg, s, timeout=timeout)
-                clines = list_from_dict(clines, True)
+                (lines, cdict, vrs, err) = argtracer.trace(arg, s, timeout=timeout)
             except argtracer.Timeout:
                 discarded.add(arg)
                 continue
 
-            (prim, sec) = get_left_diff(clines, b_clines) if not berr else ([],[])
+            (prim, sec) = get_left_diff(cdict, b_cdict) if not berr else ([],[])
             print("Current script:", arg)
             print("Used string:", repr(s))
             print("Difference to base (flipped):", prim)
