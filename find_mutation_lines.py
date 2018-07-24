@@ -181,9 +181,7 @@ if __name__ == "__main__":
             print("")
             print("Change history:", history)
             print("Base rejected:", berr)
-            for e in prim:
-                if e[0] in history:
-                    print("Warning: Condition in line:", e[0], "may be unstable!")
+            prim = [e for e in prim if e[0] not in history]
             sec = [e for e in sec if e[0] not in history]
             if not berr and err and (was_manually_raised(arg, lines[0])):
                 discarded.add(arg)
