@@ -137,50 +137,46 @@ if __name__ == "__main__":
         queue = [(ar1, [])]
         discarded = set()
         while queue:
-            print("Entering loop...")
             (arg, history) = queue.pop(0)
+            print("Current script:", arg)
             # Check whether the chosen correct string is now rejected
             try:
                 _mod = imp.load_source('mymod', arg)
             except:
-                print("Discarded script:", arg)
+                print("Discarded script:", arg, "(import error)")
                 discarded.add(arg)
                 continue
             print("Executing basestring...")
             try:
                 (_, _, _, berr) = argtracer.trace(arg, basein, timeout=timeout)
             except argtracer.Timeout:
-                print("Discarding,", arg, "due to timeout")
+                print("Discarding,", arg, "(basestring timed out)")
                 discarded.add(arg)
                 continue
-            
-            print("Base done.")
 
             # Mutation guided by rejected strings
 
             try:
                 (lines, cdict, vrs, err) = argtracer.trace(arg, s, timeout=timeout)
-            except argtracer.Timeout:
+            except:
                 discarded.add(arg)
                 continue
             # Moved this condition after the second call to make missing infinite loops less likely
             if berr:
-                print("Mutation complete:", arg)
+                print("Mutation complete:", arg, "(base rejected)")
                 continue
 
             (prim, sec) = get_left_diff(cdict, b_cdict) if not berr else ([],[])
             prim = [e for e in prim if e[0] not in history]
             sec = [e for e in sec if e[0] not in history]
-            print("Current script:", arg)
             print("Used string:", repr(s))
             print("Difference to base (flipped):", prim)
             print("Difference to base (new):", sec)
             print("Final line:", str(lines[0]))
             print("")
             print("Change history:", history)
-            print("Base rejected:", berr)
             if err and (was_manually_raised(arg, lines[0])):
-                print("Mutating:", arg, "error raised manually: True")
+                print("Mutating:", arg, "(error raised manually)")
                 discarded.add(arg)
                 for (linenum, fixes) in get_possible_fixes((prim, sec), arg, b_vrs, vrs):
                     for fix in fixes:
