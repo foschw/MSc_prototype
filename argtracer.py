@@ -118,8 +118,8 @@ def trace(arg, inpt, timeout=None):
     vrs = {}
     cond_dict = {}
     err = False
-    # Modify this cast if you want to use a different type here (e.g. when using str)
-    inpt = taintedstr.tstr(inpt)
+    # Automatically adjust to target type
+    inpt = target_type(inpt)
     _mod = imp.load_source('mymod', arg)
     global fl
     fl = arg.replace("\\", "/")
