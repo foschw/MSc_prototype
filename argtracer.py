@@ -114,7 +114,6 @@ def trace(arg, inpt, timeout=None):
         timeo = None
         time_start = None
     ar = arg
-    clines = []
     lines = []
     vrs = {}
     err = False
@@ -136,8 +135,4 @@ def trace(arg, inpt, timeout=None):
         traceback.print_exc()
         err = True
     sys.settrace(None)
-    for lne in cond_dict.keys():
-        bval = cond_dict[lne]
-        if len(bval) == 1:
-            clines.append((lne, cond_dict[lne].pop()))
-    return (lines.copy(), clines, vrs.copy(), err)
+    return (lines.copy(), cond_dict.copy(), vrs.copy(), err)

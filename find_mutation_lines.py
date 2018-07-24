@@ -35,6 +35,18 @@ def get_left_diff(l1, l2):
 def sanitize(valuestring):
     return repr(valuestring)
 
+def list_from_dict(cond_dict, unpack):
+    clines = []
+    for lne in cond_dict.keys():
+        bval = cond_dict[lne]
+        if len(bval) == 1:
+            clines.append((lne, cond_dict[lne].pop()))
+        elif unpack and len(bval) == 2:
+            clines.append((lne, True))
+            clines.append((lne, False))
+    return clines
+
+
 def make_new_conditions(old_cond, file, b_varsat, varsat):
     (lineno, state) = old_cond
     full_str = get_code_from_file(file, lineno)
@@ -123,6 +135,7 @@ if __name__ == "__main__":
         basein = cand[1] if len(cand[1]) > len(basein) else basein
     try:
         (_, b_clines, b_vrs, _) = argtracer.trace(arg, basein, timeout=timeout)
+        b_clines = list_from_dict(b_clines, False)
     except Timeout:
         print("Execution timed out on basestring! Try increasing timeout (currently", timeout," seconds)")
 
@@ -154,6 +167,7 @@ if __name__ == "__main__":
 
             try:
                 (lines, clines, vrs, err) = argtracer.trace(arg, s, timeout=timeout)
+                clines = list_from_dict(clines, True)
             except argtracer.Timeout:
                 discarded.add(arg)
                 continue
