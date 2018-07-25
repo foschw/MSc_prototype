@@ -47,7 +47,7 @@ def make_new_conditions(old_cond, file, b_varsat, varsat):
     lcand = varsat.get(lineno) if varsat.get(lineno) else None
     if lcand:
         rcand = b_varsat[lineno] if b_varsat.get(lineno) else []
-    else: return None
+    else: return []
 
     choices = [i for i in lcand if i not in rcand]
     stable = {}
@@ -56,7 +56,10 @@ def make_new_conditions(old_cond, file, b_varsat, varsat):
     stable = [i for i in choices if type(stable[i[0]]) != type(1)]
     print("Possible choices:", choices)
     print("Stable choices:", stable)
-    valid_cond = random.choice(stable) if stable else random.choice(choices)
+    if stable or choices:
+    	valid_cond = random.choice(stable) if stable else random.choice(choices)
+    else:
+    	return []
     if state:
         # Falsify the condition
         valid_cond = valid_cond[0] + " != " + sanitize(valid_cond[1])
@@ -176,7 +179,10 @@ if __name__ == "__main__":
             print("Final line:", str(lines[0]))
             print("")
             print("Change history:", history)
-            manual = was_manually_raised(arg, lines[0])
+            if err:
+            	# Check whether the exception is user-defined (then it has to be manually raised) or whether the last executed line contained a raise expression
+            	manual = hasattr(err,"__module__") or was_manually_raised(arg, lines[0])
+            	err = True
             print("Mutated string rejected:", err, "manually raised:", manual)
             if err and manual:
                 discarded.add(arg)
@@ -189,6 +195,8 @@ if __name__ == "__main__":
                         queue.append((cand, history.copy()+[linenum]))
                         file_copy_replace(cand, arg, mods)
                         mut_cnt += 1
+            else:
+            	print("Mutation complete:", arg, "(mutated string accepted)")
         discarded.discard(ar1)
         for scrpt in discarded:
             print("Removed:", scrpt)
