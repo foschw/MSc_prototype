@@ -159,8 +159,9 @@ if __name__ == "__main__":
             try:
                 (lines, cdict, vrs, err) = argtracer.trace(arg, s, timeout=timeout)
             except:
-                discarded.add(arg)
-                continue
+            	print("Tracer timed out on mutated string")
+            	discarded.add(arg)
+            	continue
             # Moved this condition after the second call to make missing infinite loops less likely
             if berr:
                 print("Mutation complete:", arg, "(base rejected)")
@@ -175,8 +176,9 @@ if __name__ == "__main__":
             print("Final line:", str(lines[0]))
             print("")
             print("Change history:", history)
-            if err and (was_manually_raised(arg, lines[0])):
-                print("Mutating:", arg, "(error raised manually)")
+            manual = was_manually_raised(arg, lines[0])
+            print("Mutated string rejected:", err, "manually raised:", manual)
+            if err and manual:
                 discarded.add(arg)
                 for (linenum, fixes) in get_possible_fixes((prim, sec), arg, b_vrs, vrs):
                     for fix in fixes:
