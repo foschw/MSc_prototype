@@ -109,6 +109,8 @@ if __name__ == "__main__":
     mut_dir = arg[arg.rfind("/")+1:arg.rfind(".")] if arg.rfind("/") >= 0 else arg[:arg.rfind(".")]
     script_name = mut_dir
     mut_dir = "mutants/" + mut_dir + "/"
+    # Store the reason why the mutantion was completed
+    mutants_with_cause = []
     # Timeout since our modifications may cause infinite loops
     timeout = 5
     if not os.path.exists(mut_dir):
@@ -168,6 +170,7 @@ if __name__ == "__main__":
             # Moved this condition after the second call to make missing infinite loops less likely
             if berr:
                 print("Mutation complete:", arg, "(base rejected)")
+                mutants_with_cause.append((arg, "valid string rejected"))
                 continue
 
             (prim, sec) = get_left_diff(cdict, b_cdict) if not berr else ([],[])
@@ -197,6 +200,9 @@ if __name__ == "__main__":
                         mut_cnt += 1
             else:
             	print("Mutation complete:", arg, "(mutated string accepted)")
+            	if arg != ar1:
+            		mutants_with_cause.append((arg, "mutated string accepted"))
+            		
         discarded.discard(ar1)
         for scrpt in discarded:
             print("Removed:", scrpt)
@@ -205,7 +211,11 @@ if __name__ == "__main__":
         mut_cnt = 0
         print("Processing string number:", str(str_cnt), "/", str(len(rej_strs)))
     print("Done. The final mutants are in:", mut_dir)
-    with open("mutants/lastrun.py", "w", encoding="UTF-8") as file:
+    with open(mut_dir[:-1] + "_inputs.log", "w", encoding="UTF-8") as file:
             for i in range(len(rej_strs)):
                 file.write(str(i) + ": " + repr(rej_strs[i][0])+"\n")
             file.write("The baseinput was:" + repr(basein))
+
+    with open(mut_dir[:-1] + ".log", "w", encoding="UTF-8") as file:
+    	for e in mutants_with_cause:
+    		file.write(repr(e) + "\n")
