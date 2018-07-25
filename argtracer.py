@@ -78,6 +78,11 @@ def line_tracer(frame, event, arg):
                 cond = extract_from_condition(res)
                 try:
                     bval = eval(cond, frame.f_globals, frame.f_locals)
+                    # Make bval boolean to take care of e.g. if var etc.
+                    if bval:
+                    	bval = True
+                    else:
+                    	bval = False
                     if cond_dict.get(frame.f_lineno):
                         cond_dict[frame.f_lineno].add(bval)
                     else:
@@ -131,9 +136,9 @@ def trace(arg, inpt, timeout=None):
     except Timeout:
         sys.settrace(None)
         raise
-    except:
-        sys.settrace(None)
-        traceback.print_exc()
-        err = True
+    except Exception as ex:
+    	err = ex
+    	sys.settrace(None)
+    	traceback.print_exc()
     sys.settrace(None)
     return (lines.copy(), cond_dict.copy(), vrs.copy(), err)
