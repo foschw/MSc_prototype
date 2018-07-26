@@ -5,19 +5,37 @@ import taintedstr
 import pickle
 import re
 import argtracer
-import functools
 from argtracer import get_code_from_file, extract_from_condition
 from argtracer import Timeout as Timeout
 import random
 import os
 import glob
 import imp
+import ast
 
-RE_raise = re.compile(r'(^|\s+)raise\s+')
+class RaiseAndCondAST:
+	def __init__(self, sourcefile):
+		self.myast = ast.parse(RaiseAndCondAST.expr_from_source(sourcefile), sourcefile)
+		ast.fix_missing_locations(self.myast)
+		self.exc_lines = []
+		self.compute_exception_lines()
 
-@functools.lru_cache(maxsize=None)
-def was_manually_raised(file, lineno):
-    return True if RE_raise.search(get_code_from_file(file, lineno)) else False
+	def compute_exception_lines(self):
+		if not self.exc_lines:
+			for stmnt in ast.walk(self.myast):
+				if isinstance(stmnt, ast.Raise):
+					for sm in ast.walk(stmnt):
+						if hasattr(sm, "lineno") and sm.lineno not in self.exc_lines:
+							self.exc_lines.append(sm.lineno)
+
+	def is_exception_line(self, lineno):
+		return lineno in self.exc_lines
+
+	def expr_from_source(source):
+		expr = ""
+		with open(source, "r", encoding="UTF-8") as file:
+			expr = file.read()
+		return expr
 
 def get_left_diff(d1, d2):
     prim = []
@@ -126,6 +144,9 @@ if __name__ == "__main__":
     pick_handle = open(pick_file, 'rb')
     rej_strs = pickle.load(pick_handle)
 
+    # Precompute the locations of manually raised errors
+    manual_errs = RaiseAndCondAST(ar1)
+
     # Get base values from the non-crashing run with the longest input
     basein = ""
     for cand in rej_strs:
@@ -184,7 +205,7 @@ if __name__ == "__main__":
             print("Change history:", history)
             if err:
             	# Check whether the exception is user-defined (then it has to be manually raised) or whether the last executed line contained a raise expression
-            	manual = hasattr(err,"__module__") or was_manually_raised(arg, lines[0])
+            	manual = hasattr(err,"__module__") or manual_errs.is_exception_line(lines[0])
             	err = True
             print("Mutated string rejected:", err, "manually raised:", manual)
             if err and manual:
