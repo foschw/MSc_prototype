@@ -5,37 +5,11 @@ import taintedstr
 import pickle
 import re
 import argtracer
-from argtracer import get_code_from_file, extract_from_condition
 from argtracer import Timeout as Timeout
 import random
 import os
 import glob
 import imp
-import ast
-
-class RaiseAndCondAST:
-	def __init__(self, sourcefile):
-		self.myast = ast.parse(RaiseAndCondAST.expr_from_source(sourcefile), sourcefile)
-		ast.fix_missing_locations(self.myast)
-		self.exc_lines = []
-		self.compute_exception_lines()
-
-	def compute_exception_lines(self):
-		if not self.exc_lines:
-			for stmnt in ast.walk(self.myast):
-				if isinstance(stmnt, ast.Raise):
-					for sm in ast.walk(stmnt):
-						if hasattr(sm, "lineno") and sm.lineno not in self.exc_lines:
-							self.exc_lines.append(sm.lineno)
-
-	def is_exception_line(self, lineno):
-		return lineno in self.exc_lines
-
-	def expr_from_source(source):
-		expr = ""
-		with open(source, "r", encoding="UTF-8") as file:
-			expr = file.read()
-		return expr
 
 def get_left_diff(d1, d2):
     prim = []
@@ -58,9 +32,10 @@ def sanitize(valuestring):
     return repr(valuestring)
 
 def make_new_conditions(old_cond, file, b_varsat, varsat):
+    global manual_errs
     (lineno, state) = old_cond
-    full_str = get_code_from_file(file, lineno)
-    cond_str = extract_from_condition(full_str)
+    (full_str, startline, endline, offset) = manual_errs.get_if_and_range_for_line(lineno, file)
+    cond_str = manual_errs.get_condition_from_line(lineno, file)
     # Conditions that hold for the last execution of the line and not for the baseline run
     lcand = varsat.get(lineno) if varsat.get(lineno) else None
     if lcand:
@@ -86,32 +61,34 @@ def make_new_conditions(old_cond, file, b_varsat, varsat):
         # Satisfy the condition
         valid_cond = valid_cond[0] + " == " + sanitize(valid_cond[1])
         new_cond = "(" + cond_str + ") or " + valid_cond
-        
-    cond_idx = full_str.find(cond_str)
-    nc1 = full_str[0:cond_idx] + new_cond + full_str[cond_idx+len(cond_str):]
-    nc2 = full_str[0:cond_idx] + valid_cond + full_str[cond_idx+len(cond_str):]
-    return (str(nc1), str(nc2))
+    
+    nc1 = full_str[:offset] + new_cond + full_str[offset+len(cond_str):]
+    nc2 = full_str[:offset].rstrip() + " " + valid_cond + ":"
+    for i in range(endline-startline-1):
+    	nc2 = nc2 + "\n"
+    nc2 = nc2 + full_str[offset+len(cond_str)+1:]
+    return ((str(nc1), str(nc2)), startline, endline)
 
 def get_possible_fixes(delta, file, b_varsat, varsat):
     (prim, sec) = delta
     fixmap = []
     if prim:
         for (lineno, state) in prim:
-            cand = make_new_conditions((lineno,state),file,b_varsat,varsat)
-            if cand: fixmap.append((lineno, cand))
+            ((cand1, cand2), startline, endline) = make_new_conditions((lineno,state),file,b_varsat,varsat)
+            if cand1 and cand2: fixmap.append(([cand1, cand2],startline, endline))
     elif sec:
         for (lineno, state) in sec:
-            cand = make_new_conditions((lineno,state),file,b_varsat,varsat)
-            if cand: fixmap.append((lineno, cand))
+            ((cand1, cand2), startline, endline) = make_new_conditions((lineno,state),file,b_varsat,varsat)
+            if cand1 and cand2: fixmap.append(([cand1, cand2],startline, endline))
     return fixmap
 
 def file_copy_replace(target, source, modifications):
     with open(target, "w", encoding="UTF-8") as trgt:
         with open(source, "r", encoding="UTF-8") as src:
             for i, line in enumerate(src):
-                if modifications.get(i+1):
+                if modifications.get(i+1) is not None and modifications.get(i+1) != "":
                     trgt.write(modifications[i+1])
-                else:
+                elif modifications.get(i+1) != "":
                     trgt.write(line)
 
 def cleanup(mut_dir, completed):
@@ -145,7 +122,8 @@ if __name__ == "__main__":
     rej_strs = pickle.load(pick_handle)
 
     # Precompute the locations of manually raised errors
-    manual_errs = RaiseAndCondAST(ar1)
+    global manual_errs
+    manual_errs = argtracer.compute_base_ast(ar1)
 
     # Get base values from the non-crashing run with the longest input
     basein = ""
@@ -210,13 +188,15 @@ if __name__ == "__main__":
             print("Mutated string rejected:", err, "manually raised:", manual)
             if err and manual:
                 discarded.add(arg)
-                for (linenum, fixes) in get_possible_fixes((prim, sec), arg, b_vrs, vrs):
-                    for fix in fixes:
+                for fix_element in get_possible_fixes((prim, sec), arg, b_vrs, vrs):
+                    (fix_lst, startline, endline) = fix_element
+                    for fix in fix_lst:
                         cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
-                        mods = {
-                            linenum : fix
-                            }
-                        queue.append((cand, history.copy()+[linenum]))
+                        mods = {}
+                        mods[startline] = fix
+                        for intermed_line in range(startline+1, endline+1):
+                        	mods[intermed_line] = ""
+                        queue.append((cand, history.copy()+[startline]))
                         file_copy_replace(cand, arg, mods)
                         mut_cnt += 1
             else:

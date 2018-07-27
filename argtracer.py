@@ -6,6 +6,7 @@ import taintedstr
 import re
 import functools
 from timeit import default_timer as timer
+import ast
 
 cond_dict = {}
 lines = []
@@ -16,47 +17,98 @@ time_start = None
 # target_type = type("")
 # By using the commented line instead we get a seizable improvement in execution time but may consume more memory
 target_type = type(taintedstr.tstr(''))
+base_ast = None
 
-RE_if = re.compile(r'^\s*(if|elif)\s+([^:]|(:[^\s]))+:\s.*')
+class RaiseAndCondAST:
+	def __init__(self, sourcefile):
+		self.source = sourcefile
+		self.myast = ast.parse(RaiseAndCondAST.expr_from_source(sourcefile), sourcefile)
+		ast.fix_missing_locations(self.myast)
+		self.exc_lines = []
+		self.cond_lines = []
+		self.cond_repr = []
+		self.compute_lines()		
+
+	def compute_lines(self):
+		for stmnt in ast.walk(self.myast):
+			if isinstance(stmnt, ast.If):
+				startline = stmnt.lineno
+				endline = stmnt.body[0].lineno
+				body0_off = stmnt.body[0].col_offset
+				cond_off = stmnt.test.col_offset - 1
+				next = self.make_next(startline, endline, body0_off)
+				self.cond_repr.append((startline, endline, cond_off, next))
+				if startline not in self.cond_lines:
+					self.cond_lines.append(startline)
+			elif isinstance(stmnt, ast.Raise):
+				for sm in ast.walk(stmnt):
+					if hasattr(sm, "lineno") and sm.lineno not in self.exc_lines:
+						self.exc_lines.append(sm.lineno)
+
+	def is_exception_line(self, lineno):
+		return lineno in self.exc_lines
+
+	def is_condition_line(self, lineno):
+		return lineno in self.cond_lines
+
+	def print_exception_lines(self):
+		print(self.exc_lines)
+
+	def print_cond_lines(self):
+		print(self.cond_lines)
+
+	def make_next(self, startline, endline, body0_off):
+		next_frag = ""
+		with open(self.source, "r", encoding="UTF-8") as fp:
+			for i, line in enumerate(fp):
+				if i+1 == endline:
+					next_frag = line[body0_off:]
+		return next_frag
+
+	def expr_from_source(source):
+		expr = ""
+		with open(source, "r", encoding="UTF-8") as file:
+			expr = file.read()
+		return expr
+
+	def get_condition_from_line(self, line_num, target_file):
+		if line_num not in self.cond_lines: return None
+		else:
+			cond = ""
+			for (startline, endline, cond_off, next) in self.cond_repr:
+				if startline == line_num:
+					with open(target_file, "r", encoding="UTF-8") as fp:
+						for i, line in enumerate(fp):
+							if i+1 == startline:
+								cond = cond + line[cond_off:]
+							if i+1 > startline and i+1 <= endline:
+								cond = cond + line
+					break
+		cond = cond[:cond.rfind(next)]
+		cond = cond[:cond.rfind(":")]
+		return cond
+
+	def get_if_and_range_for_line(self, line_num, target_file):
+		if line_num not in self.cond_lines: return None
+		else:
+			cond = ""
+			for (startline, endline, offset, _) in self.cond_repr:
+				if startline == line_num:
+					with open(target_file, "r", encoding="UTF-8") as fp:
+						for i, line in enumerate(fp):
+							if i+1 >= startline and i+1 <= endline:
+								cond = cond + line
+					break
+		return (cond, startline, endline, offset)
+
 
 class Timeout(Exception):
     pass
 
-@functools.lru_cache(maxsize=None)
-def get_code_from_file(arg, linenum):
-    with open(arg, "r", encoding="UTF-8") as fp:
-        for i, line in enumerate(fp):
-            if i+1 == linenum:
-                return line
-
-@functools.lru_cache(maxsize=None)            
-def extract_from_condition(cond):
-    poss = cond.count(":")
-    if poss < 1:
-        return ""
-    elif poss == 1:
-        try:
-            eval(cond[cond.find("if")+2:cond.find(":")])
-        except SyntaxError:
-            return ""
-        except:
-            pass
-        return cond[cond.find("if")+2:cond.find(":")].lstrip()
-    else:
-        idx = 0
-        lastvalid = ""
-        while poss > 0:
-            idx = cond.find(":", idx+1)
-            poss -= 1
-            substr = cond[cond.find("if")+2:idx]
-            try:
-                eval(substr)
-            except SyntaxError:
-                continue
-            except:
-                pass
-            lastvalid = substr
-        return lastvalid.lstrip()
+def compute_base_ast(sourcefile):
+	global base_ast
+	base_ast = RaiseAndCondAST(sourcefile)
+	return base_ast
 
 def line_tracer(frame, event, arg):
     if event == 'line':
@@ -67,15 +119,15 @@ def line_tracer(frame, event, arg):
         global time_start
         global cond_dict
         global target_type
+        global base_ast
         if fl in frame.f_code.co_filename:
             if timeo:
                 end = timer()
                 if (end - time_start) >= timeo:
                     raise Timeout("Execution timed out!")
             lines.insert(0, frame.f_lineno)
-            res = get_code_from_file(ar, frame.f_lineno)
-            if res and RE_if.match(res):
-                cond = extract_from_condition(res)
+            if base_ast.is_condition_line(frame.f_lineno):
+                cond = base_ast.get_condition_from_line(frame.f_lineno, ar)
                 try:
                     bval = eval(cond, frame.f_globals, frame.f_locals)
                     # Make bval boolean to take care of e.g. if var etc.
@@ -91,7 +143,7 @@ def line_tracer(frame, event, arg):
                         cond_dict[frame.f_lineno] = cond_set
                 except:
                     # This is not a good idea, but better than crashing for now
-                    print("Warning: unable to infer condition result in line:", frame.f_lineno)
+                    print("WARNING: unable to infer condition result in line:", frame.f_lineno)
                     pass
                 global vrs
                 vass = vrs.get(frame.f_lineno) if vrs.get(frame.f_lineno) else []
