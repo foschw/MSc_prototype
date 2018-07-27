@@ -216,7 +216,7 @@ if __name__ == "__main__":
     with open(mut_dir[:-1] + "_inputs.log", "w", encoding="UTF-8") as file:
             for i in range(len(rej_strs)):
                 file.write(str(i) + ": " + repr(rej_strs[i][0])+"\n")
-            file.write("The baseinput was:" + repr(basein))
+            file.write("The baseinput was: " + repr(basein))
 
     with open(mut_dir[:-1] + ".log", "w", encoding="UTF-8") as file:
     	for e in mutants_with_cause:
