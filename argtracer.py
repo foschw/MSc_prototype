@@ -129,6 +129,8 @@ def line_tracer(frame, event, arg):
             if base_ast.is_condition_line(frame.f_lineno):
                 cond = base_ast.get_condition_from_line(frame.f_lineno, ar)
                 try:
+                	# NOTE: This will break the execution in case the condition causes sideffects like modifying an object
+                	# To prevent this we may implement a less aggressive mode, which deep copies all variables the condition modifies in both globals and locals if needed
                     bval = eval(cond, frame.f_globals, frame.f_locals)
                     # Make bval boolean to take care of e.g. if var etc.
                     if bval:
