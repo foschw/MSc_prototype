@@ -130,10 +130,12 @@ if __name__ == "__main__":
     for cand in rej_strs:
         basein = cand[1] if len(cand[1]) > len(basein) else basein
     try:
-        (_, b_cdict, b_vrs, _) = argtracer.trace(arg, basein, timeout=timeout)
+        (_, b_cdict, b_vrs, err) = argtracer.trace(arg, basein, timeout=timeout)
     except Timeout:
         print("Execution timed out on basestring! Try increasing timeout (currently", timeout," seconds)")
 
+    if err:
+    	raise SystemExit("Exiting: " + pick_file + " contains no valid inputs for " + ar1)
     print("Used baseinput:", repr(basein))
 
     for s in rej_strs:
