@@ -172,9 +172,8 @@ if __name__ == "__main__":
             if berr:
                 print("Mutation complete:", arg, "(base rejected)")
                 mutants_with_cause.append((arg, "valid string rejected"))
-                continue
 
-            (prim, sec) = get_left_diff(cdict, b_cdict) if not berr else ([],[])
+            (prim, sec) = get_left_diff(cdict, b_cdict)
             prim = [e for e in prim if e[0] not in history]
             sec = [e for e in sec if e[0] not in history]
             print("Used string:", repr(s))
