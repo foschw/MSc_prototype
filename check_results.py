@@ -6,13 +6,17 @@ import re
 import pickle
 
 def execute_script_with_argument(script, argument):
-	proc = subprocess.run("python " + script + " " + argument, stderr=subprocess.PIPE)
 	try:
-		proc.check_returncode()
-	except subprocess.CalledProcessError:
-		return proc.stderr
+		proc = subprocess.run("python " + script + " " + argument, stderr=subprocess.PIPE)
+	except Exception as e:
+		return e
 	else:
-		return None	
+		try:
+			proc.check_returncode()
+		except subprocess.CalledProcessError:
+			return repr(proc.stderr)
+		else:
+			return None	
 
 if __name__ == "__main__":
 	if len(sys.argv) < 2:
@@ -45,29 +49,36 @@ if __name__ == "__main__":
 	base_ast = compute_base_ast(base_file)
 	errs = []
 	for script in cause_dict.keys():
+		print("Checking script:", script)
 		for the_cause in cause_dict[script]:
 			# Basestring rejected
 			if the_cause == 1:
 				argument = inputs[-1]
 				res = execute_script_with_argument(script, argument)
 				if res is None:
-					errs.append((script, "base not rejected"))
+					errs.append((script, "valid string not rejected"))
+				elif type(res) != type(""):
+					errs.append((script, "script execution with given argument failed"))
 			# Mutated string accepted
 			else:
 				argument = inputs[int(script[script.find("_")+1:script.rfind("_")])]
 				res = execute_script_with_argument(script, argument)
 				if res is not None:
-					RE_this_line = re.compile(r"File\s\"" + script + "\",\sline\s\d+,")
-					err_locs = RE_this_line.findall(repr(res))
-					if err_locs:
-						reject = False
-						for err_loc in err_locs:
-							err_loc = err_loc[err_loc.rfind(", line ")+7:err_loc.rfind(",")]
-							reject = reject or base_ast.is_exception_line(int(err_loc))
-						if reject:
-							errs.append((script, "mutated string rejected"))
+					if type(res) == type(""):
+						RE_this_line = re.compile(r"File\s\"" + script + "\",\sline\s\d+,")
+						err_locs = RE_this_line.findall(res)
+						if err_locs:
+							reject = False
+							for err_loc in err_locs:
+								err_loc = err_loc[err_loc.rfind(", line ")+7:err_loc.rfind(",")]
+								reject = reject or base_ast.is_exception_line(int(err_loc))
+							if reject:
+								errs.append((script, "mutated string rejected"))
+					else:
+						errs.append((script, "script execution with given argument failed"))
 	print()
 	if not errs:
 		print("No problems found.")
 	else:
+		print("Found", len(errs), "potential problems:")
 		print(errs)
