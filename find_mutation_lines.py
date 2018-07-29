@@ -74,12 +74,16 @@ def get_possible_fixes(delta, file, b_varsat, varsat):
     fixmap = []
     if prim:
         for (lineno, state) in prim:
-            ((cand1, cand2), startline, endline) = make_new_conditions((lineno,state),file,b_varsat,varsat)
-            if cand1 and cand2: fixmap.append(([cand1, cand2],startline, endline))
+        	new_conds_with_lines = make_new_conditions((lineno,state),file,b_varsat,varsat)
+        	if new_conds_with_lines:
+        	    ((cand1, cand2), startline, endline) = new_conds_with_lines
+        	    if cand1 and cand2: fixmap.append(([cand1, cand2],startline, endline))
     elif sec:
         for (lineno, state) in sec:
-            ((cand1, cand2), startline, endline) = make_new_conditions((lineno,state),file,b_varsat,varsat)
-            if cand1 and cand2: fixmap.append(([cand1, cand2],startline, endline))
+        	new_conds_with_lines = make_new_conditions((lineno,state),file,b_varsat,varsat)
+        	if new_conds_with_lines:
+        	     ((cand1, cand2), startline, endline) = new_conds_with_lines
+        	     if cand1 and cand2: fixmap.append(([cand1, cand2],startline, endline))
     return fixmap
 
 def file_copy_replace(target, source, modifications):
@@ -187,7 +191,7 @@ if __name__ == "__main__":
             	manual = hasattr(err,"__module__") or manual_errs.is_exception_line(lines[0])
             	err = True
             print("Mutated string rejected:", err, "manually raised:", manual)
-            if err and manual:
+            if not berr and err and manual:
                 discarded.add(arg)
                 for fix_element in get_possible_fixes((prim, sec), arg, b_vrs, vrs):
                     (fix_lst, startline, endline) = fix_element
@@ -200,7 +204,7 @@ if __name__ == "__main__":
                         queue.append((cand, history.copy()+[startline]))
                         file_copy_replace(cand, arg, mods)
                         mut_cnt += 1
-            else:
+            elif not berr:
             	print("Mutation complete:", arg, "(mutated string accepted)")
             	if arg != ar1:
             		mutants_with_cause.append((arg, "mutated string accepted"))
