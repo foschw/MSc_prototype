@@ -191,8 +191,9 @@ if __name__ == "__main__":
             	manual = hasattr(err,"__module__") or manual_errs.is_exception_line(lines[0])
             	err = True
             print("Mutated string rejected:", err, "manually raised:", manual)
-            if not berr and err and manual:
-                discarded.add(arg)
+            if err and manual:
+                if not berr:
+                	discarded.add(arg)
                 for fix_element in get_possible_fixes((prim, sec), arg, b_vrs, vrs):
                     (fix_lst, startline, endline) = fix_element
                     for fix in fix_lst:
@@ -204,10 +205,9 @@ if __name__ == "__main__":
                         queue.append((cand, history.copy()+[startline]))
                         file_copy_replace(cand, arg, mods)
                         mut_cnt += 1
-            elif not berr:
+            elif not berr and arg != ar1:
             	print("Mutation complete:", arg, "(mutated string accepted)")
-            	if arg != ar1:
-            		mutants_with_cause.append((arg, "mutated string accepted"))
+            	mutants_with_cause.append((arg, "mutated string accepted"))
             		
         discarded.discard(ar1)
         for scrpt in discarded:
