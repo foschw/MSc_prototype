@@ -205,7 +205,7 @@ if __name__ == "__main__":
                         queue.append((cand, history.copy()+[startline]))
                         file_copy_replace(cand, arg, mods)
                         mut_cnt += 1
-            elif not berr and arg != ar1:
+            elif arg != ar1:
             	print("Mutation complete:", arg, "(mutated string accepted)")
             	mutants_with_cause.append((arg, "mutated string accepted"))
             		
