@@ -56,13 +56,13 @@ def make_new_conditions(old_cond, file, b_varsat, varsat):
     if state:
         # Falsify the condition
         valid_cond = valid_cond[0] + " != " + sanitize(valid_cond[1])
-        new_cond = "(" + cond_str + ") and " + valid_cond
+        new_cond = "(" + cond_str.lstrip() + ") and " + valid_cond
     else:
         # Satisfy the condition
         valid_cond = valid_cond[0] + " == " + sanitize(valid_cond[1])
-        new_cond = "(" + cond_str + ") or " + valid_cond
+        new_cond = "(" + cond_str.lstrip() + ") or " + valid_cond
     
-    nc1 = full_str[:offset] + new_cond + full_str[offset+len(cond_str):]
+    nc1 = full_str[:offset].rstrip() + " " + new_cond + full_str[offset+len(cond_str):]
     nc2 = full_str[:offset].rstrip() + " " + valid_cond + ":"
     for i in range(endline-startline-1):
     	nc2 = nc2 + "\n"
