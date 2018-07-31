@@ -46,7 +46,7 @@ if __name__ == "__main__":
 	for ele in rej_strs:
 		inputs.append(ele[0])
 	inputs.append(basein)
-	base_ast = compute_base_ast(base_file)
+	base_ast = compute_base_ast(base_file, base_file)
 	errs = []
 	for script in cause_dict.keys():
 		print("Checking script:", script)

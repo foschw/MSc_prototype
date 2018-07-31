@@ -34,8 +34,8 @@ def sanitize(valuestring):
 def make_new_conditions(old_cond, file, b_varsat, varsat):
     global manual_errs
     (lineno, state) = old_cond
-    (full_str, startline, endline, offset) = manual_errs.get_if_and_range_for_line(lineno, file)
-    cond_str = manual_errs.get_condition_from_line(lineno, file)
+    full_str = manual_errs.get_if_from_line(lineno, file)
+    cond_str = full_str[full_str.find("if")+3:full_str.rfind(":")]
     # Conditions that hold for the last execution of the line and not for the baseline run
     lcand = varsat.get(lineno) if varsat.get(lineno) else None
     if lcand:
@@ -62,28 +62,23 @@ def make_new_conditions(old_cond, file, b_varsat, varsat):
         valid_cond = valid_cond[0] + " == " + sanitize(valid_cond[1])
         new_cond = "(" + cond_str.lstrip() + ") or " + valid_cond
     
-    nc1 = full_str[:offset].rstrip() + " " + new_cond + full_str[offset+len(cond_str):]
-    nc2 = full_str[:offset].rstrip() + " " + valid_cond + ":"
-    for i in range(endline-startline-1):
-    	nc2 = nc2 + "\n"
-    nc2 = nc2 + full_str[offset+len(cond_str)+1:]
-    return ((str(nc1), str(nc2)), startline, endline)
+    nc1 = full_str[:full_str.find("if")+2] + " " + new_cond + ":"
+    nc2 = full_str[:full_str.find("if")+2] + " " + valid_cond + ":"
+    return [str(nc1), str(nc2)]
 
 def get_possible_fixes(delta, file, b_varsat, varsat):
     (prim, sec) = delta
     fixmap = []
     if prim:
         for (lineno, state) in prim:
-        	new_conds_with_lines = make_new_conditions((lineno,state),file,b_varsat,varsat)
-        	if new_conds_with_lines:
-        	    ((cand1, cand2), startline, endline) = new_conds_with_lines
-        	    if cand1 and cand2: fixmap.append(([cand1, cand2],startline, endline))
+        	fix_list = make_new_conditions((lineno,state),file,b_varsat,varsat)
+        	if fix_list:
+        	    fixmap.append((fix_list, lineno))
     elif sec:
         for (lineno, state) in sec:
-        	new_conds_with_lines = make_new_conditions((lineno,state),file,b_varsat,varsat)
-        	if new_conds_with_lines:
-        	     ((cand1, cand2), startline, endline) = new_conds_with_lines
-        	     if cand1 and cand2: fixmap.append(([cand1, cand2],startline, endline))
+        	fix_list = make_new_conditions((lineno,state),file,b_varsat,varsat)
+        	if fix_list:
+        	    fixmap.append((fix_list, lineno))
     return fixmap
 
 def file_copy_replace(target, source, modifications):
@@ -125,16 +120,18 @@ if __name__ == "__main__":
     pick_handle = open(pick_file, 'rb')
     rej_strs = pickle.load(pick_handle)
 
-    # Precompute the locations of manually raised errors
+    # Precompute the locations of manually raised errors and format the file properly
     global manual_errs
-    manual_errs = argtracer.compute_base_ast(ar1)
+    manual_errs = argtracer.compute_base_ast(ar1, mut_dir + script_name + ".py")
+
+    ar1 = mut_dir + script_name + ".py"
 
     # Get base values from the non-crashing run with the longest input
     basein = ""
     for cand in rej_strs:
         basein = cand[1] if len(cand[1]) > len(basein) else basein
     try:
-        (_, b_cdict, b_vrs, err) = argtracer.trace(arg, basein, timeout=timeout)
+        (_, b_cdict, b_vrs, err) = argtracer.trace(ar1, basein, timeout=timeout)
     except Timeout:
         print("Execution timed out on basestring! Try increasing timeout (currently", timeout," seconds)")
 
@@ -194,17 +191,17 @@ if __name__ == "__main__":
             if err and manual:
                 if not berr:
                 	discarded.add(arg)
-                for fix_element in get_possible_fixes((prim, sec), arg, b_vrs, vrs):
-                    (fix_lst, startline, endline) = fix_element
-                    for fix in fix_lst:
-                        cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
-                        mods = {}
-                        mods[startline] = fix
-                        for intermed_line in range(startline+1, endline+1):
-                        	mods[intermed_line] = ""
-                        queue.append((cand, history.copy()+[startline]))
-                        file_copy_replace(cand, arg, mods)
-                        mut_cnt += 1
+                all_fixes = get_possible_fixes((prim, sec), arg, b_vrs, vrs)
+                if all_fixes:
+                    for (fix_list, fix_line) in all_fixes:
+                        for fix in fix_list:
+                            if not fix.endswith("\n"):
+                                fix = fix + "\n"
+                            cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
+                            mods = { fix_line : fix }
+                            queue.append((cand, history.copy()+[fix_line]))
+                            file_copy_replace(cand, arg, mods)
+                            mut_cnt += 1
             elif arg != ar1:
             	print("Mutation complete:", arg, "(mutated string accepted)")
             	mutants_with_cause.append((arg, "mutated string accepted"))
@@ -216,6 +213,7 @@ if __name__ == "__main__":
         str_cnt += 1
         mut_cnt = 0
         print("Processing string number:", str(str_cnt), "/", str(len(rej_strs)))
+    os.remove(ar1)
     print("Done. The final mutants are in:", mut_dir)
     with open(mut_dir[:-1] + "_inputs.log", "w", encoding="UTF-8") as file:
             for i in range(len(rej_strs)):
