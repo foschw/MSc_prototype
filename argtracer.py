@@ -19,7 +19,8 @@ time_start = None
 # By using the commented line instead we get a seizable improvement in execution time but may consume more memory
 target_type = type(taintedstr.tstr(''))
 base_ast = None
-cond_flag = False
+cond_flag = {}
+depth = -1
 
 class RaiseAndCondAST:
 	def __init__(self, sourcefile, deformattedfile):
@@ -84,33 +85,38 @@ def compute_base_ast(sourcefile, defile):
 	return base_ast
 
 def line_tracer(frame, event, arg):
-	if event == 'line':
-		global lines
-		global fl
-		global ar
-		global timeo
-		global time_start
-		global cond_dict
-		global target_type
-		global base_ast
-		global cond_flag
-		if fl in frame.f_code.co_filename:
+	global fl
+	if fl in frame.f_code.co_filename:
+		global depth
+		if event == 'call':
+			depth += 1
+		elif event == 'return':
+			depth -= 1
+		if event == 'line':
+			global lines
+			global ar
+			global timeo
+			global time_start
+			global cond_dict
+			global target_type
+			global base_ast
+			global cond_flag
 			if timeo:
 				end = timer()
 				if (end - time_start) >= timeo:
 					raise Timeout("Execution timed out!")
-			if cond_flag:
-				bval = base_ast.cond_dict[lines[0]] == frame.f_lineno
-				if cond_dict.get(lines[0]): 
-					cond_dict[lines[0]].add(bval)
+			if cond_flag.get(depth):
+				bval = base_ast.cond_dict[cond_flag[depth]] == frame.f_lineno
+				if cond_dict.get(cond_flag[depth]): 
+					cond_dict[cond_flag[depth]].add(bval)
 				else:
 					cond_set = set()
 					cond_set.add(bval)
-					cond_dict[lines[0]] = cond_set
-				cond_flag = False
+					cond_dict[cond_flag[depth]] = cond_set
+				cond_flag[depth] = None
 			lines.insert(0, frame.f_lineno)
 			if base_ast.is_condition_line(frame.f_lineno): 
-				cond_flag = True
+				cond_flag[depth] = frame.f_lineno
 				global vrs
 				vass = vrs.get(frame.f_lineno) if vrs.get(frame.f_lineno) else []
 				avail = [v for v in vass[0]] if vass else None
@@ -131,18 +137,20 @@ def trace(arg, inpt, timeout=None):
     global time_start
     global cond_dict
     global cond_flag
+    global depth
     if timeout:
         time_start = timer()
         timeo = timeout
     else:
         timeo = None
         time_start = None
+    depth = -1
     ar = arg
     lines = []
     vrs = {}
     cond_dict = {}
     err = False
-    cond_flag = False
+    cond_flag = {}
     # Automatically adjust to target type
     inpt = target_type(inpt)
     _mod = imp.load_source('mymod', arg)
