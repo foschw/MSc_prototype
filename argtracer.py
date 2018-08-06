@@ -113,7 +113,7 @@ def line_tracer(frame, event, arg):
 					cond_set = set()
 					cond_set.add(bval)
 					cond_dict[cond_flag[depth]] = cond_set
-				cond_flag[depth] = None
+				cond_flag.pop(depth)
 			lines.insert(0, frame.f_lineno)
 			if base_ast.is_condition_line(frame.f_lineno): 
 				cond_flag[depth] = frame.f_lineno
