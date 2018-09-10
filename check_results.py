@@ -18,13 +18,15 @@ def execute_script_with_argument(script, argument):
 		else:
 			return None	
 
-if __name__ == "__main__":
-	if len(sys.argv) < 2:
+def main(argv):
+	if len(argv) < 2:
 		raise SystemExit("Please specify the script name!")
 
-	scriptname = sys.argv[1] if not sys.argv[1].endswith(".py") else sys.argv[1][:sys.argv[1].rfind(".py")]
+	scriptname = argv[1] if not argv[1].endswith(".py") else argv[1][:argv[1].rfind(".py")]
+	if scriptname.rfind("/"):
+		scriptname = scriptname[scriptname.rfind("/")+1:]
 	cause_file = "mutants/" + scriptname + ".log"
-	inputs_file = "rejected.bin" if len(sys.argv) < 3 else sys.argv[2]
+	inputs_file = "rejected.bin" if len(argv) < 3 else argv[2]
 	all_inputs = []
 	cause_dict = {}
 	base_file = None
@@ -82,3 +84,6 @@ if __name__ == "__main__":
 	else:
 		print("Found", len(errs), "potential problems:")
 		print(errs)
+
+if __name__ == "__main__":
+	main(sys.argv)

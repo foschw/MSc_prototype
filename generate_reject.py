@@ -88,7 +88,7 @@ def get_valid_inputs(arg, times):
     return res
 
 
-def main(arg, times):
+def gen(arg, times):
     # If the string is too short do not use mutators that shrink it further
     min_len = 5
     # Mutation attempts per generated string since mutations are cheap but generation is expensive
@@ -117,9 +117,9 @@ def main(arg, times):
 
     return rejected
 
-if __name__ == "__main__":
-    res = main(sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else 1)
-    outfile = sys.argv[3] if len(sys.argv) > 3 else "rejected.bin"
+def main(args):
+    res = gen(args[1], int(args[2]) if len(args) > 2 else 1)
+    outfile = args[3] if len(args) > 3 else "rejected.bin"
     resl = []
     for r in res:
         resl.append(r)
@@ -128,3 +128,6 @@ if __name__ == "__main__":
     res_file = open(outfile, mode='wb')
     pickle.dump(resl, res_file)
     res_file.close()
+
+if __name__ == "__main__":
+    main(sys.argv)

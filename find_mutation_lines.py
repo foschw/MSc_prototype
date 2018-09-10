@@ -96,8 +96,8 @@ def cleanup(mut_dir, completed):
         if fl not in completed:
             os.remove(fl)
 
-if __name__ == "__main__":
-    arg = sys.argv[1]
+def main(argv):
+    arg = argv[1]
     arg = arg.replace("\\", "/")
     ar1 = arg
     mut_dir = arg[arg.rfind("/")+1:arg.rfind(".")] if arg.rfind("/") >= 0 else arg[:arg.rfind(".")]
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     str_cnt = 0
     # Mutation counter
     mut_cnt = 0
-    pick_file = sys.argv[2] if len(sys.argv) > 2 else "rejected.bin"
+    pick_file = argv[2] if len(argv) > 2 else "rejected.bin"
     pick_handle = open(pick_file, 'rb')
     rej_strs = pickle.load(pick_handle)
 
@@ -223,3 +223,6 @@ if __name__ == "__main__":
     with open(mut_dir[:-1] + ".log", "w", encoding="UTF-8") as file:
     	for e in mutants_with_cause:
     		file.write(repr(e) + "\n")
+
+if __name__ == "__main__":
+    main(sys.argv)
