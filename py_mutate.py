@@ -11,7 +11,7 @@ def main(argv):
     prog = argv[1] if argv[1].endswith(".py") else argv[1] + ".py"
     binfile = "rejected_" + prog[prog.rfind("/")+1:prog.rfind(".py")] + ".bin" if not argv[2] else argv[2]
     iterations = 1000 if not argv[3] else argv[3]
-    if len(argv) < 3:
+    if not argv[2]:
         print("Generating input for:", prog, "...")
         gen([None, prog, iterations, binfile])
     else:
