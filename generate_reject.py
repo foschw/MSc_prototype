@@ -7,6 +7,7 @@ import taintedstr
 import random
 import pickle
 
+# The usual mutation operations introduced in Security Testing
 def bitflip(text):
     # Do not mutate if the input is not big enough
     if len(text) < 1:
@@ -69,6 +70,7 @@ def swap(text):
     b2 = text[e]
     return text[:s] + b2 + text[s+1:e] + b1 + text[e+1:]
 
+# Run pychains for $times$ iterations to get valid inputs
 def get_valid_inputs(arg, times):
     _mod = imp.load_source('mymod', arg)
     res = set()
@@ -87,7 +89,7 @@ def get_valid_inputs(arg, times):
 
     return res
 
-
+# Generate rejected strings by applying mutation operations
 def gen(arg, times):
     # If the string is too short do not use mutators that shrink it further
     min_len = 5
@@ -95,14 +97,16 @@ def gen(arg, times):
     mut_attempts = 100
     _mod = imp.load_source('mymod', arg)
     rejected = set()
+    # Mutation operations well suited for short strings
     smutops = [bitflip, byteflip, insert]
+    # Mutation operations for longer strings
     lmutops = [trim, delete, swap]
     mutops = smutops + lmutops
     valid_strs = get_valid_inputs(arg, times)
     print("Got", len(valid_strs), "valid strings from pychains (", times, "iterations)")
 
     for a in valid_strs:
-
+        # Perform up to $mut_attempts$ mutations and keep the first valid one
         for j in range(mut_attempts):
             mutator = random.choice(smutops) if len(str(a)) <= min_len else random.choice(mutops)
             a1 = taintedstr.tstr(mutator(str(a)))
@@ -118,6 +122,7 @@ def gen(arg, times):
     return rejected
 
 def main(args):
+    # Generate rejected input strings
     res = gen(args[1], int(args[2]) if len(args) > 2 else 1)
     outfile = args[3] if len(args) > 3 else "rejected.bin"
     resl = []
@@ -125,6 +130,7 @@ def main(args):
         resl.append(r)
     print(resl)
     print(str(len(resl)), " rejected elements created")
+    # Save the mutated strings in binary as a file
     res_file = open(outfile, mode='wb')
     pickle.dump(resl, res_file)
     res_file.close()

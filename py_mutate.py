@@ -11,13 +11,17 @@ def main(argv):
     prog = argv[1] if argv[1].endswith(".py") else argv[1] + ".py"
     binfile = "rejected_" + prog[prog.rfind("/")+1:prog.rfind(".py")] + ".bin" if not argv[2] else argv[2]
     iterations = 1000 if not argv[3] else argv[3]
+    # Generate inputs in case no binary file is supplied
     if not argv[2]:
         print("Generating input for:", prog, "...")
         gen([None, prog, iterations, binfile])
+    # Otherwise use the given inputs
     else:
         print("Using inputs from:", binfile)
     print("Starting mutation...", prog)
+    # Run the mutation algorithm
     mutate([None, prog, binfile])
+    # Finally check whether the results are fine.
     print("Testing result integrity...")
     check([None, prog, binfile])
 

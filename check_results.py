@@ -5,6 +5,9 @@ from argtracer import compute_base_ast
 import re
 import pickle
 
+# Executes a .py file with a string argument.
+# Returns the exception in case a problem occured, None otherwise.
+# Note: Does not seem to work with docker.
 def execute_script_with_argument(script, argument):
 	try:
 		proc = subprocess.run("python " + script + " " + argument, stderr=subprocess.PIPE)
@@ -19,6 +22,8 @@ def execute_script_with_argument(script, argument):
 			return None	
 
 def main(argv):
+	# Specify the original name of the script to check the results. 
+	# Uses the second argument as binary input file, or "rejected.bin" in case it is ommitted.
 	if len(argv) < 2:
 		raise SystemExit("Please specify the script name!")
 
@@ -32,6 +37,7 @@ def main(argv):
 	base_file = None
 	with open(cause_file, "r", encoding="UTF-8") as causes:
 		for _, line in enumerate(causes):
+			# Check whether the mutant is supposed to accept the mutated string or reject the original one.
 			(filename, the_cause) = eval(line[:-1])
 			if not base_file:
 				base_file = filename
@@ -41,6 +47,7 @@ def main(argv):
 			cause_dict[filename] = the_set
 	rej_strs = pickle.load(open(inputs_file, "rb"))
 	basein = ""
+	# Find the used base candidate (i.e. longest string)
 	for cand in rej_strs:
 		basein = cand[1] if len(cand[1]) > len(basein) else basein
 
@@ -48,6 +55,7 @@ def main(argv):
 	for ele in rej_strs:
 		inputs.append(ele[0])
 	inputs.append(basein)
+	# Compute the AST of the original file to find which lines raise exceptions manually
 	base_ast = compute_base_ast(base_file, base_file)
 	errs = []
 	for script in cause_dict.keys():
@@ -66,6 +74,7 @@ def main(argv):
 				argument = inputs[int(script[script.find("_")+1:script.rfind("_")])]
 				res = execute_script_with_argument(script, argument)
 				if res is not None:
+					# Check whether the exception was manually raised
 					if type(res) == type(""):
 						RE_this_line = re.compile(r"File\s\"" + script + "\",\sline\s\d+,")
 						err_locs = RE_this_line.findall(res)
