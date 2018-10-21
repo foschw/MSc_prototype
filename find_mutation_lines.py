@@ -164,6 +164,8 @@ def main(argv):
         s = s[0]
         queue = [(ar1, [])]
         discarded = set()
+        # Save which exception the first execution of the rejected string produced
+        original_ex_str = None
         while queue:
             (arg, history) = queue.pop(0)
             print("Current script:", arg)
@@ -194,6 +196,9 @@ def main(argv):
                 print("Mutation complete:", arg, "(base rejected)")
                 mutants_with_cause.append((arg, "valid string rejected"))
 
+            if original_ex_str is None:
+                original_ex_str = str(err.__class__)
+
             (prim, sec) = get_left_diff(cdict, b_cdict)
             prim = [e for e in prim if e[0] not in history]
             sec = [e for e in sec if e[0] not in history]
@@ -204,11 +209,11 @@ def main(argv):
             print("")
             print("Change history:", history)
             if err:
-            	# Check whether the exception is user-defined (then it has to be manually raised) or whether the last executed line contained a raise expression
-            	manual = hasattr(err,"__module__") or manual_errs.is_exception_line(lines[0])
+            	# Check whether the exception is different from the first encountered one
+            	diff_err = str(err.__class__) != original_ex_str
             	err = True
-            print("Mutated string rejected:", err, "manually raised:", manual)
-            if err and manual:
+            print("Mutated string rejected:", err, "different:", diff_err)
+            if err and not diff_err:
                 if not berr:
                     # In case the base string is not rejected we discard the script, otherwise we can keep it
                 	discarded.add(arg)
