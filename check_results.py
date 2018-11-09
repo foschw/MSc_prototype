@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import sys
 import subprocess
-from argtracer import compute_base_ast
 import re
 import pickle
 
@@ -9,17 +8,36 @@ import pickle
 # Returns the exception in case a problem occured, None otherwise.
 # Note: Does not seem to work with docker.
 def execute_script_with_argument(script, argument):
-	try:
-		proc = subprocess.run("python " + script + " " + argument, stderr=subprocess.PIPE)
-	except Exception as e:
-		return e
-	else:
-		try:
-			proc.check_returncode()
-		except subprocess.CalledProcessError:
-			return repr(proc.stderr)
-		else:
-			return None	
+	cmd = "python " + script + " " + str(argument)
+	proc = subprocess.Popen(cmd, shell=True,stderr=subprocess.PIPE)
+	err = proc.communicate()[1].decode(sys.stderr.encoding)
+	return extract_error_name(err)
+
+# Extracts the error name from a traceback string
+def extract_error_name(stderr_string):
+	exc_name = None
+	if not stderr_string:
+		return exc_name
+	
+	err_arr = stderr_string.split("\n")
+	skip_next = False
+	started = False
+	re_skipnext = re.compile(r'\s*File "')
+	for errmsg in err_arr:
+		if len(errmsg) > 1:
+			if not started:
+				started = True
+			elif skip_next:
+				skip_next = False
+			elif re.match(re_skipnext, errmsg):
+				skip_next = True
+			elif errmsg.find(":") > 0:
+				exc_name = errmsg.lstrip()
+				break
+
+	exc_name = exc_name[:exc_name.find(":")]
+	return exc_name
+
 
 def main(argv):
 	# Specify the original name of the script to check the results. 
@@ -33,66 +51,79 @@ def main(argv):
 	cause_file = "mutants/" + scriptname + ".log"
 	inputs_file = "rejected.bin" if len(argv) < 3 else argv[2]
 	all_inputs = []
-	cause_dict = {}
-	base_file = None
+	all_mutants = []
+	behave = []
+	mutant_to_cause = {}
+
 	with open(cause_file, "r", encoding="UTF-8") as causes:
-		for _, line in enumerate(causes):
-			# Check whether the mutant is supposed to accept the mutated string or reject the original one.
-			(filename, the_cause) = eval(line[:-1])
-			if not base_file:
-				base_file = filename
-			the_cause = 0 if the_cause.find("accepted") > -1 else 1 
-			the_set = [] if not cause_dict.get(filename) else cause_dict[filename]
-			the_set.append(the_cause)
-			cause_dict[filename] = the_set
+		for num, line in enumerate(causes):
+			# Get the path to the original script
+			if num == 0:
+				original_file = line.strip()
+				original_file = original_file[original_file.find(":")+3:-1]
+			else:
+				# Use eval to get the pair representation of the line. The first element is the mutant.
+				the_mutant = eval(line)[0]
+				effect_set = mutant_to_cause.get(the_mutant) if mutant_to_cause.get(the_mutant) else set()
+				# Code mutant behaviour as integer for easy comparison
+				if eval(line)[1].find("rejected") > -1:
+					effect_set.add(0)
+				else:
+					effect_set.add(1)
+				mutant_to_cause[the_mutant] = effect_set
+				if the_mutant not in all_mutants:
+					all_mutants.append(the_mutant)
+
 	rej_strs = pickle.load(open(inputs_file, "rb"))
 	basein = ""
+	inputs = []
 	# Find the used base candidate (i.e. longest string)
 	for cand in rej_strs:
-		basein = cand[1] if len(cand[1]) > len(basein) else basein
+		basein = str(cand[1]) if len(str(cand[1])) > len(basein) else basein
+		inputs.append(str(cand[0]))
 
-	inputs = []
-	for ele in rej_strs:
-		inputs.append(ele[0])
-	inputs.append(basein)
-	# Compute the AST of the original file to find which lines raise exceptions manually
-	base_ast = compute_base_ast(base_file, base_file)
 	errs = []
-	for script in cause_dict.keys():
-		print("Checking script:", script)
-		for the_cause in cause_dict[script]:
-			# Basestring rejected
-			if the_cause == 1:
-				argument = inputs[-1]
-				res = execute_script_with_argument(script, argument)
-				if res is None:
-					errs.append((script, "valid string not rejected"))
-				elif type(res) != type(""):
-					errs.append((script, "script execution with given argument failed"))
-			# Mutated string accepted
-			else:
-				argument = inputs[int(script[script.find("_")+1:script.rfind("_")])]
-				res = execute_script_with_argument(script, argument)
-				if res is not None:
-					# Check whether the exception was manually raised
-					if type(res) == type(""):
-						RE_this_line = re.compile(r"File\s\"" + script + "\",\sline\s\d+,")
-						err_locs = RE_this_line.findall(res)
-						if err_locs:
-							reject = False
-							for err_loc in err_locs:
-								err_loc = err_loc[err_loc.rfind(", line ")+7:err_loc.rfind(",")]
-								reject = reject or base_ast.is_exception_line(int(err_loc))
-							if reject:
-								errs.append((script, "mutated string rejected"))
-					else:
-						errs.append((script, "script execution with given argument failed"))
+
+	# Check whether the used valid string is actually valid
+	exc_orig = execute_script_with_argument(original_file, basein)
+	if exc_orig:
+		raise SystemExit("Original script rejects baseinput: " + basein)
+
+	# Check all mutants for behaviour changes
+	for my_mutant in all_mutants:
+		print("Checking mutant:", my_mutant)
+		# Check whether the valid string is rejected
+		exc_mutant_valid = execute_script_with_argument(my_mutant, basein)
+		if exc_mutant_valid:
+			behave.append((my_mutant, "valid string rejected"))
+		my_input = my_mutant[:my_mutant.rfind("_")]
+		my_input = inputs[int(my_input[my_input.rfind("_")+1:])]
+		# Check the output of the original script for the rejected string
+		exc_orig_invalid = execute_script_with_argument(original_file, my_input)
+		# Check the output of the mutated script for the rejected string
+		exc_mutant = execute_script_with_argument(my_mutant, my_input)
+		if not exc_mutant:
+			behave.append(my_mutant, "invalid string accepted")
+		elif exc_orig_invalid != exc_mutant:
+			behave.append((my_mutant, "invalid string raises new exception"))
+		
+		# Compare expected and actual behaviour
+		for e in mutant_to_cause.get(my_mutant):
+			if e == 0 and not exc_mutant_valid:
+				errs.append((my_mutant, "valid string not rejected"))
+			elif e == 1 and exc_mutant and exc_orig_invalid == exc_mutant:
+				errs.append((my_mutant, "mutated string not accepted"))
+
 	print()
 	if not errs:
 		print("No problems found.")
 	else:
-		print("Found", len(errs), "potential problems:")
+		print("Found", len(errs), "potential problem(s):")
 		print(errs)
+
+	print()
+	print("Detected behaviour:")
+	print(behave)
 
 if __name__ == "__main__":
 	main(sys.argv)

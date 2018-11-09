@@ -120,6 +120,7 @@ def main(argv):
     arg = argv[1]
     arg = arg.replace("\\", "/")
     ar1 = arg
+    orig_file = ar1
     mut_dir = arg[arg.rfind("/")+1:arg.rfind(".")] if arg.rfind("/") >= 0 else arg[:arg.rfind(".")]
     script_name = mut_dir
     mut_dir = "mutants/" + mut_dir + "/"
@@ -254,8 +255,9 @@ def main(argv):
             file.write("The baseinput was: " + repr(basein))
 
     with open(mut_dir[:-1] + ".log", "w", encoding="UTF-8") as file:
-    	for e in mutants_with_cause:
-    		file.write(repr(e) + "\n")
+        file.write("Mutating script: " + repr(orig_file) + "\n")
+        for e in mutants_with_cause:
+            file.write(repr(e) + "\n")
 
 if __name__ == "__main__":
     main(sys.argv)
