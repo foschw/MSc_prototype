@@ -6,7 +6,6 @@ import pickle
 
 # Executes a .py file with a string argument.
 # Returns the exception in case a problem occured, None otherwise.
-# Note: Does not seem to work with docker.
 def execute_script_with_argument(script, argument):
 	cmd = "python " + script + " " + str(argument)
 	proc = subprocess.Popen(cmd, shell=True,stderr=subprocess.PIPE)
