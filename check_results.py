@@ -155,6 +155,8 @@ def main(argv):
 		print(errs)
 
 	if clean_invalid:
+		print()
+		print("Removing potentially invalid scripts...")
 		clean_and_fix_log(errs, behave, cause_file)
 
 	print()

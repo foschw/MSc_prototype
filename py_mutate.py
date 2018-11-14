@@ -23,7 +23,7 @@ def main(argv):
     mutate([None, prog, binfile])
     # Finally check whether the results are fine.
     print("Testing result integrity...")
-    check([None, prog, binfile])
+    check([None, prog, binfile, True])
 
 if __name__ == "__main__":
     print('The arguments are: "program path" [, -b "binary input file", -i "number of pychains iterations"]', flush=True)
