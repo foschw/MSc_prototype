@@ -3,11 +3,12 @@ import sys
 import subprocess
 import re
 import pickle
+import os
 
 # Executes a .py file with a string argument.
 # Returns the exception in case a problem occured, None otherwise.
 def execute_script_with_argument(script, argument):
-	cmd = "python " + script + " " + str(argument)
+	cmd = 'python "' + script + '" "' + repr(argument)[1:-1] + '"'
 	proc = subprocess.Popen(cmd, shell=True,stderr=subprocess.PIPE)
 	err = proc.communicate()[1].decode(sys.stderr.encoding)
 	return extract_error_name(err)
@@ -38,9 +39,31 @@ def extract_error_name(stderr_string):
 	return exc_name
 
 
+# Removes potentially invalid mutants based on the error list and fixes the log accordingly
+def clean_and_fix_log(errs, behave, logfile):
+
+	tmp = logfile + "_"
+	with open(tmp, "w", encoding="UTF-8") as dest:
+		with open(logfile, "r", encoding="UTF-8") as log:
+			for num, line in enumerate(log):
+				if num == 0:
+					dest.write(line)
+				else:
+					scrpt, cause = eval(line)
+					if not errs.get(scrpt) or cause.replace("string", "string not") not in errs.get(scrpt):
+						dest.write(line)
+
+	for fl in errs:
+		if not behave.get(fl):
+			os.remove(fl)
+
+	os.remove(logfile)
+	os.rename(tmp, logfile)
+
 def main(argv):
 	# Specify the original name of the script to check the results. 
 	# Uses the second argument as binary input file, or "rejected.bin" in case it is ommitted.
+	# The optional third argument controls whether the unverifiable scripts are to be removed.
 	if len(argv) < 2:
 		raise SystemExit("Please specify the script name!")
 
@@ -49,9 +72,10 @@ def main(argv):
 		scriptname = scriptname[scriptname.rfind("/")+1:]
 	cause_file = "mutants/" + scriptname + ".log"
 	inputs_file = "rejected.bin" if len(argv) < 3 else argv[2]
+	clean_invalid = False if len(argv) < 4 else argv[3]
 	all_inputs = []
 	all_mutants = []
-	behave = []
+	behave = {}
 	mutant_to_cause = {}
 
 	with open(cause_file, "r", encoding="UTF-8") as causes:
@@ -78,10 +102,10 @@ def main(argv):
 	inputs = []
 	# Find the used base candidate (i.e. longest string)
 	for cand in rej_strs:
-		basein = str(cand[1]) if len(str(cand[1])) > len(basein) else basein
-		inputs.append(str(cand[0]))
+		basein = str(cand[1]).replace("\\","\\\\") if len(str(cand[1])) > len(basein) else basein
+		inputs.append(str(cand[0]).replace("\\","\\\\"))
 
-	errs = []
+	errs = {}
 
 	# Check whether the used valid string is actually valid
 	exc_orig = execute_script_with_argument(original_file, basein)
@@ -94,7 +118,9 @@ def main(argv):
 		# Check whether the valid string is rejected
 		exc_mutant_valid = execute_script_with_argument(my_mutant, basein)
 		if exc_mutant_valid:
-			behave.append((my_mutant, "valid string rejected"))
+			bh = behave.get(my_mutant) if behave.get(my_mutant) else []
+			bh.append("valid string rejected")
+			behave[my_mutant] = bh
 		my_input = my_mutant[:my_mutant.rfind("_")]
 		my_input = inputs[int(my_input[my_input.rfind("_")+1:])]
 		# Check the output of the original script for the rejected string
@@ -102,16 +128,24 @@ def main(argv):
 		# Check the output of the mutated script for the rejected string
 		exc_mutant = execute_script_with_argument(my_mutant, my_input)
 		if not exc_mutant:
-			behave.append(my_mutant, "invalid string accepted")
+			bh = behave.get(my_mutant) if behave.get(my_mutant) else []
+			bh.append("invalid string accepted")
+			behave[my_mutant] = bh
 		elif exc_orig_invalid != exc_mutant:
-			behave.append((my_mutant, "invalid string raises new exception"))
-		
+			bh = behave.get(my_mutant) if behave.get(my_mutant) else []
+			bh.append("invalid string raises new exception")
+			behave[my_mutant] = bh
+
 		# Compare expected and actual behaviour
 		for e in mutant_to_cause.get(my_mutant):
 			if e == 0 and not exc_mutant_valid:
-				errs.append((my_mutant, "valid string not rejected"))
+				er = errs.get(my_mutant) if errs.get(my_mutant) else []
+				er.append("valid string not rejected")
+				errs[my_mutant] = er
 			elif e == 1 and exc_mutant and exc_orig_invalid == exc_mutant:
-				errs.append((my_mutant, "mutated string not accepted"))
+				er = errs.get(my_mutant) if errs.get(my_mutant) else []
+				er.append("mutated string not accepted")
+				errs[my_mutant] = er
 
 	print()
 	if not errs:
@@ -120,9 +154,16 @@ def main(argv):
 		print("Found", len(errs), "potential problem(s):")
 		print(errs)
 
+	if clean_invalid:
+		clean_and_fix_log(errs, behave, cause_file)
+
 	print()
 	print("Detected behaviour:")
 	print(behave)
+	for mut in behave:
+		if mut[1].find("accepted") >= 0:
+			print()
+			print("Rare mutant:", mut)
 
 if __name__ == "__main__":
 	main(sys.argv)
