@@ -6,7 +6,7 @@ import pickle
 import os
 
 # Executes a .py file with a string argument.
-# Returns the exception in case a problem occured, None otherwise.
+# Returns the exception in case one occured, "-1" if the execution failed and None otherwise.
 def execute_script_with_argument(script, argument):
 	cmd = ["python", script, argument]
 	try:
@@ -46,8 +46,9 @@ def extract_error_name(stderr_string):
 
 
 # Removes potentially invalid mutants based on the error list and fixes the log accordingly
-def clean_and_fix_log(errs, behave, logfile):
+def clean_and_fix_log(errs, logfile):
 	tmp = logfile + "_"
+	still_alive = set()
 	with open(tmp, "w", encoding="UTF-8") as dest:
 		with open(logfile, "r", encoding="UTF-8") as log:
 			for num, line in enumerate(log):
@@ -57,12 +58,13 @@ def clean_and_fix_log(errs, behave, logfile):
 					scrpt, cause = eval(line)
 					if not errs.get(scrpt) or cause.replace("string", "string not") not in errs.get(scrpt):
 						dest.write(line)
+						still_alive.add(scrpt)
 
 	for fl in errs:
-		if not behave.get(fl):
+		if fl not in still_alive:
 			os.remove(fl)
 
-	os.remove(logfile)
+	os.rename(logfile, logfile + ".old")
 	os.rename(tmp, logfile)
 
 def main(argv):
@@ -147,7 +149,7 @@ def main(argv):
 				er = errs.get(my_mutant) if errs.get(my_mutant) else []
 				er.append("valid string not rejected")
 				errs[my_mutant] = er
-			elif e == 1 and exc_mutant and exc_mutant != "-1" and exc_orig_invalid == exc_mutant:
+			elif e == 1 and exc_mutant and exc_orig_invalid == exc_mutant or exc_mutant == "-1":
 				er = errs.get(my_mutant) if errs.get(my_mutant) else []
 				er.append("mutated string not accepted")
 				errs[my_mutant] = er
@@ -162,7 +164,7 @@ def main(argv):
 	if clean_invalid:
 		print()
 		print("Removing potentially invalid scripts...")
-		clean_and_fix_log(errs, behave, cause_file)
+		clean_and_fix_log(errs, cause_file)
 
 	print()
 	print("Detected behaviour:")
