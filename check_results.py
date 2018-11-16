@@ -10,7 +10,7 @@ import os
 def execute_script_with_argument(script, argument):
 	cmd = ["python", script, repr(argument)[1:-1]]
 	try:
-		proc = subprocess.Popen(cmd, shell=True,stderr=subprocess.PIPE)
+		proc = subprocess.Popen(cmd, shell=False,stderr=subprocess.PIPE)
 		err = proc.communicate()[1].decode(sys.stderr.encoding)
 	except:
 		return "-1"
