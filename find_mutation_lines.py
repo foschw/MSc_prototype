@@ -10,6 +10,7 @@ import random
 import os
 import glob
 import imp
+from timeit import default_timer as timer
 
 # Computes the "left difference" of two sets.
 # This returns two sets: 
@@ -127,7 +128,7 @@ def main(argv):
     # Store the reason why the mutation was completed
     mutants_with_cause = []
     # Timeout since our modifications may cause infinite loops
-    timeout = 5
+    timeout = 2 if len(argv) < 4 or not argv[3] else argv[3]
     if not os.path.exists(mut_dir):
         os.makedirs(mut_dir)
     else:
@@ -141,20 +142,32 @@ def main(argv):
     pick_handle = open(pick_file, 'rb')
     rej_strs = pickle.load(pick_handle)
 
-    # Precompute the locations of manually raised errors and format the file properly
+    # Precompute the locations of conditions and the lines of their then and else case and format the file properly
     global manual_errs
     manual_errs = argtracer.compute_base_ast(ar1, mut_dir + script_name + ".py")
 
     ar1 = mut_dir + script_name + ".py"
 
+    # Record how long the slowest execution takes to have a better prediction of the required timeout
+    slowest_run = 0
     # Get base values from the non-crashing run with the longest input
     basein = ""
     for cand in rej_strs:
         basein = cand[1] if len(cand[1]) > len(basein) else basein
+        for str_inpt in cand:
+            start_time = timer()
+            try:
+                argtracer.trace(ar1, str_inpt)
+            finally:
+                time_elapsed = timer() - start_time
+                if time_elapsed > slowest_run:
+                    slowest_run = time_elapsed
+
+    timeout = max(timeout, int(2*slowest_run)+1)
     try:
         (_, b_cdict, b_vrs, err) = argtracer.trace(ar1, basein, timeout=timeout)
     except Timeout:
-        print("Execution timed out on basestring! Try increasing timeout (currently", timeout," seconds)")
+        print("Execution timed out on basestring! Try increasing timeout (currently", timeout," seconds)")    
 
     if err:
     	raise SystemExit("Exiting: " + pick_file + " contains no valid inputs for " + ar1)
