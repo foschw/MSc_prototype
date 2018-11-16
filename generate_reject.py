@@ -97,7 +97,7 @@ def swap(text):
     b2 = text[e]
     return text[:s] + b2 + text[s+1:e] + b1 + text[e+1:]
 
-# Run pychains for $times$ iterations to get valid inputs
+# Run pychains for roughly $timelimit$ seconds to get valid inputs
 def get_valid_inputs(arg, timelimit):
     _mod = imp.load_source('mymod', arg)
     res = set()
