@@ -8,7 +8,7 @@ import os
 # Executes a .py file with a string argument.
 # Returns the exception in case one occured, "-1" if the execution failed and None otherwise.
 def execute_script_with_argument(script, argument):
-	cmd = ["python", script, argument]
+	cmd = ["python", script, repr(argument)[1:-1]]
 	try:
 		proc = subprocess.Popen(cmd, shell=True,stderr=subprocess.PIPE)
 		err = proc.communicate()[1].decode(sys.stderr.encoding)
@@ -64,6 +64,8 @@ def clean_and_fix_log(errs, logfile):
 		if fl not in still_alive:
 			os.remove(fl)
 
+	if os.path.exists(logfile + ".old"):
+		os.remove(logfile + ".old")
 	os.rename(logfile, logfile + ".old")
 	os.rename(tmp, logfile)
 
@@ -145,11 +147,11 @@ def main(argv):
 
 		# Compare expected and actual behaviour
 		for e in mutant_to_cause.get(my_mutant):
-			if e == 0 and not exc_mutant_valid or exc_mutant_valid == "-1":
+			if e == 0 and (not exc_mutant_valid or exc_mutant_valid == "-1"):
 				er = errs.get(my_mutant) if errs.get(my_mutant) else []
 				er.append("valid string not rejected")
 				errs[my_mutant] = er
-			elif e == 1 and exc_mutant and exc_orig_invalid == exc_mutant or exc_mutant == "-1":
+			elif e == 1 and ((exc_mutant and exc_mutant == "-1") or (exc_orig_invalid and exc_orig_invalid == "-1") or (exc_mutant and exc_orig_invalid and exc_mutant == exc_orig_invalid)):
 				er = errs.get(my_mutant) if errs.get(my_mutant) else []
 				er.append("mutated string not accepted")
 				errs[my_mutant] = er
@@ -167,13 +169,37 @@ def main(argv):
 		clean_and_fix_log(errs, cause_file)
 
 	print()
-	print("Detected behaviour:")
-	print(behave)
+	# Assign mutant class to scripts
+	mut_0 = []
+	mut_1 = []
+	mut_2 = []
 	for mut in behave:
 		for bhvr in behave[mut]:
-			if bhvr.find("accepted") >= 0:
-				print()
-				print("Rare mutant:", mut)
+			if bhvr.find("rejected") >= 0:
+				mut_0.append(mut)
+			elif bhvr.find("raises") >= 0:
+				mut_1.append(mut)
+			elif bhvr.find("accepted") >= 0:
+				mut_2.append(mut)
+
+	behave_file = "mutants/" + scriptname + "_verified.log"
+	if os.path.exists(behave_file):
+		os.remove(behave_file)
+	with open(behave_file, "w", encoding="UTF-8") as dest:
+		if mut_0:
+			dest.write("Valid string rejected:\n")
+			for m_0 in mut_0:
+				dest.write(m_0 + "\n")
+			dest.write("\n")
+		if mut_1:
+			dest.write("Invalid string raises new exception:\n")
+			for m_1 in mut_1:
+				dest.write(m_1 + "\n")
+			dest.write("\n")
+		if mut_2:
+			dest.write("Invalid string accepted:\n")
+			for m_2 in mut_2:
+				dest.write(m_2 + "\n")
 
 if __name__ == "__main__":
 	main(sys.argv)
