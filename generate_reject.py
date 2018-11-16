@@ -6,6 +6,33 @@ import imp
 import taintedstr
 import random
 import pickle
+from timeit import default_timer as timer
+
+# A class that allows retrieving list elements in a wrapping manner. 
+# Once an element is retrieved it will not appear again until each other element was returned once.
+class RandomizedList:
+    def __init__(self, content):
+        self.content = content
+        self.offset = 0
+
+    # Returns a random element from the list with repetition only possible after all other elements were retrieved
+    def get_random_element(self):
+        if len(self.content) - self.offset == 1:
+            res = self.content[0]
+            self.offset = 0
+        else:
+            pos = random.choice(range(len(self.content)-self.offset))
+            res = self.content[pos]
+            self.offset += 1
+            tmp = self.content[len(self.content)-self.offset]
+            self.content[pos] = tmp
+            self.content[len(self.content)-self.offset] = res
+
+        return res
+
+    # Returns the length of the internal list
+    def __len__(self):
+        return len(self.content)
 
 # The usual mutation operations introduced in Security Testing
 def bitflip(text):
@@ -71,11 +98,14 @@ def swap(text):
     return text[:s] + b2 + text[s+1:e] + b1 + text[e+1:]
 
 # Run pychains for $times$ iterations to get valid inputs
-def get_valid_inputs(arg, times):
+def get_valid_inputs(arg, timelimit):
     _mod = imp.load_source('mymod', arg)
     res = set()
-    for i in range(times):
-        print(i, "--------", flush=True)
+    start = timer()
+    best_time = 0
+    while timelimit > 0.9*best_time:
+        print(timelimit, "--------", flush=True)
+        start_chain = timer()
         e = pychains.chain.Chain()
         try:
             (a, r) = e.exec_argument(_mod.main)
@@ -83,6 +113,11 @@ def get_valid_inputs(arg, times):
             print("Pychains encountered an error, skipping...", flush=True)
             taintedstr.reset_comparisons()
             continue
+        finally:
+            time_elapsed = timer() - start_chain
+            if time_elapsed < best_time or best_time == 0:
+                best_time = time_elapsed
+            timelimit -= time_elapsed
         res.add(a)
         print("Arg:", repr(a), flush=True)
         print("Eval:", repr(r), flush=True)    
@@ -90,7 +125,7 @@ def get_valid_inputs(arg, times):
     return res
 
 # Generate rejected strings by applying mutation operations
-def gen(arg, times):
+def gen(arg, timelimit):
     # If the string is too short do not use mutators that shrink it further
     min_len = 5
     # Mutation attempts per generated string since mutations are cheap but generation is expensive
@@ -102,17 +137,24 @@ def gen(arg, times):
     # Mutation operations for longer strings
     lmutops = [trim, delete, swap]
     mutops = smutops + lmutops
-    valid_strs = get_valid_inputs(arg, times)
-    print("Got", len(valid_strs), "valid strings from pychains (", times, "iterations)")
-
-    for a in valid_strs:
-        # Perform up to $mut_attempts$ mutations and keep the first valid one
-        for j in range(mut_attempts):
+    valid_strs = get_valid_inputs(arg, timelimit)
+    valid_str_lst = RandomizedList([elemnt for elemnt in valid_strs])
+    print("Got", len(valid_strs), "valid strings from pychains (" + str(timelimit) + " s)")
+    # The rough amount of attempts for the whole set of strings
+    mut_acc = mut_attempts * len(valid_str_lst)
+    while mut_acc > 0:
+        # Limit the amount of output elements
+        if len(rejected) >= 2*len(valid_str_lst):
+            break
+        a = valid_str_lst.get_random_element()
+        # Mutate up to mut_attempts times
+        for i in range(max(int(mut_acc/max(1,(len(valid_str_lst)-len(rejected)))),1)):
+            mut_acc -= 1
             mutator = random.choice(smutops) if len(str(a)) <= min_len else random.choice(mutops)
             a1 = taintedstr.tstr(mutator(str(a)))
             try:        
                 res = _mod.main(a1)
-            except Exception as ex:
+            except:
                 print("Mutation result: ", repr(a1), "(", str(mutator), ")", flush=True)
                 rejected.add((a1, a))
                 break
@@ -123,13 +165,13 @@ def gen(arg, times):
 
 def main(args):
     # Generate rejected input strings
-    res = gen(args[1], int(args[2]) if len(args) > 2 else 1)
+    res = gen(args[1], int(args[2]) if len(args) > 2 else 5000)
     outfile = args[3] if len(args) > 3 else "rejected.bin"
     resl = []
     for r in res:
         resl.append(r)
-    print(resl)
-    print(str(len(resl)), " rejected elements created")
+    print(resl, flush=True)
+    print(str(len(resl)), " rejected elements created", flush=True)
     # Save the mutated strings in binary as a file
     res_file = open(outfile, mode='wb')
     pickle.dump(resl, res_file)

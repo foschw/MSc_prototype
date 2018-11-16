@@ -10,36 +10,39 @@ def main(argv):
     # The argument order is: program path, binary input file, number of pychains iterations
     prog = argv[1] if argv[1].endswith(".py") else argv[1] + ".py"
     binfile = "rejected_" + prog[prog.rfind("/")+1:prog.rfind(".py")] + ".bin" if not argv[2] else argv[2]
-    iterations = 1000 if not argv[3] else argv[3]
+    timelimit = 60 if not argv[3] else argv[3]
     # Generate inputs in case no binary file is supplied
     if not argv[2]:
-        print("Generating input for:", prog, "...")
-        gen([None, prog, iterations, binfile])
+        print("Generating input for:", prog, "...", flush=True)
+        gen([None, prog, timelimit, binfile])
     # Otherwise use the given inputs
     else:
-        print("Using inputs from:", binfile)
-    print("Starting mutation...", prog)
+        print("Using inputs from:", binfile, flush=True)
+    print("Starting mutation...", prog, flush=True)
     # Run the mutation algorithm
     mutate([None, prog, binfile])
     # Finally check whether the results are fine.
-    print("Testing result integrity...")
+    print("Testing result integrity...", flush=True)
     check([None, prog, binfile, True])
 
 if __name__ == "__main__":
-    print('The arguments are: "program path" [, -b "binary input file", -i "number of pychains iterations"]', flush=True)
+    print('The arguments are: "program path" [, -b "binary input file", -t "time for generation in seconds"]', flush=True)
     
     binfile = None
-    iterations = None
-
+    timelimit = 60
+    print(len(sys.argv))
     if len(sys.argv) < 2:
         raise SystemExit("Please specifiy a .py file as argument.")
+    elif len(sys.argv) > 2 and not sys.argv[2].startswith("-"):
+        raise SystemExit("Invalid parameter after script. \n Possible options: \n -b \"binary input file\", \n -t \"time for generation in seconds\"")
 
-    opts, args = getopt.getopt(sys.argv[2:], "b:i:")
+
+    opts, args = getopt.getopt(sys.argv[2:], "b:t:")
     for opt, a in opts:
         if opt == "-b":
             print("Using binary file:", a, flush=True)
             binfile = a
-        elif opt == "-i":
-            iterations = int(a)
+        elif opt == "-t":
+            timelimit = int(a)
 
-    main([sys.argv[0],sys.argv[1],binfile,iterations])
+    main([sys.argv[0],sys.argv[1],binfile,timelimit])

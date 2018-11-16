@@ -134,7 +134,7 @@ def main(argv):
 		exc_orig_invalid = execute_script_with_argument(original_file, my_input)
 		# Check the output of the mutated script for the rejected string
 		exc_mutant = execute_script_with_argument(my_mutant, my_input)
-		if not exc_mutant or exc_mutant == "-1":
+		if not exc_mutant:
 			bh = behave.get(my_mutant) if behave.get(my_mutant) else []
 			bh.append("invalid string accepted")
 			behave[my_mutant] = bh
@@ -170,9 +170,10 @@ def main(argv):
 	print("Detected behaviour:")
 	print(behave)
 	for mut in behave:
-		if mut[1].find("accepted") >= 0:
-			print()
-			print("Rare mutant:", mut)
+		for bhvr in behave[mut]:
+			if bhvr.find("accepted") >= 0:
+				print()
+				print("Rare mutant:", mut)
 
 if __name__ == "__main__":
 	main(sys.argv)
