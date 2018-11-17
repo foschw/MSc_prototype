@@ -8,7 +8,7 @@ import os
 # Executes a .py file with a string argument.
 # Returns the exception in case one occured, "-1" if the execution failed and None otherwise.
 def execute_script_with_argument(script, argument):
-	cmd = ["python", script, repr(argument)[1:-1]]
+	cmd = ["python", script, argument]
 	try:
 		proc = subprocess.Popen(cmd, shell=False,stderr=subprocess.PIPE)
 		err = proc.communicate()[1].decode(sys.stderr.encoding)
@@ -163,7 +163,7 @@ def main(argv):
 		print("Found", len(errs), "potential problem(s):")
 		print(errs)
 
-	if clean_invalid:
+	if clean_invalid and errs:
 		print()
 		print("Removing potentially invalid scripts...")
 		clean_and_fix_log(errs, cause_file)
