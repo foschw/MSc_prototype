@@ -1,6 +1,70 @@
 # A really simple expression evaluator supporting the
 # four basic math functions, parentheses, and variables.
 # source: https://github.com/vrthra/pychains
+# Augmented with a simple test suite
+import unittest
+
+class TestMathexpr(unittest.TestCase):
+    def test_pi_const(self):
+        with self.assertRaises(Exception):
+            parser = Parser("", vars={"pi":"3"})
+
+    def test_e_const(self):
+        with self.assertRaises(Exception):
+            parser = Parser("", vars={"e":"3"})
+
+    def test_priority(self):
+        self.assertEqual(Parser("2+3*4").getValue(),14)
+
+    def test_ignore_whitespace(self):
+        self.assertEqual(Parser("\t2*\n3").getValue(),6)
+
+    def test_invalid_char(self):
+        with self.assertRaises(Exception):
+            Parser("2*?").getValue()
+
+    def test_div_by_zero(self):
+        with self.assertRaises(Exception):
+            Parser("pi/0").getValue()
+
+    def test_parentheses_unbalanced(self):
+        with self.assertRaises(Exception):
+            Parser("(2*(3+4)))").getValue()
+
+    def test_unbound_var(self):
+        with self.assertRaises(Exception):
+            Parser("2*a").getValue()
+
+    def test_multiple_dot(self):
+        with self.assertRaises(Exception):
+            Parser("2.45.6").getValue()
+
+    def test_neg_1(self):
+        self.assertEqual(Parser("2*-21").getValue(),-42)
+
+    def test_neg_2(self):
+        self.assertEqual(Parser("-3*4").getValue(),-12)
+
+    def test_neg_3(self):
+        self.assertEqual(Parser("-6*-5").getValue(),30)
+
+    def test_float_1(self):
+        self.assertEqual(Parser("5*3.2").getValue(), 16.0)
+
+    def test_float_2(self):
+        self.assertEqual(Parser("3.2+2.7").getValue(), 5.9)
+
+    def test_int_1(self):
+        self.assertEqual(Parser("3+4*5-6/6").getValue(),22)
+
+    def test_int_2(self):
+        self.assertEqual(Parser("3*4+5-6").getValue(), 11)
+
+    def test_omitted_dot_1(self):
+        self.assertEqual(Parser(".3*0.2").getValue(),0.06)
+
+    def test_omitted_dot_2(self):
+        self.assertEqual(Parser("3*.5").getValue(),1.5)
 
 class Parser:
     def __init__(self, string, vars={}):
