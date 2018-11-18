@@ -6,16 +6,21 @@ from generate_reject import main as gen
 from find_mutation_lines import main as mutate
 from check_results import main as check
 from run_unittests import main as run_tests
+from config import get_default_config
+
+current_config = None
 
 def main(argv):
+    global current_config
+    current_config = get_default_config()
     # The argument order is: program path, binary input file, number of pychains iterations
     prog = argv[1] if argv[1].endswith(".py") else argv[1] + ".py"
     binfile = "rejected_" + prog[prog.rfind("/")+1:prog.rfind(".py")] + ".bin" if not argv[2] else argv[2]
-    timelimit = 60 if not argv[3] else argv[3]
-    timeout = 2 if not argv[4] else argv[4]
+    timelimit = int(current_config["default_gen_time"]) if not argv[3] else argv[3]
+    timeout = int(current_config["min_timeout"]) if not argv[4] else argv[4]
     # Generate inputs in case no binary file is supplied
     if not argv[2]:
-        print("Generating input for:", prog, "...", flush=True)
+        print("Generating inputs for:", prog, "...", flush=True)
         gen([None, prog, timelimit, binfile])
     # Otherwise use the given inputs
     else:
@@ -36,8 +41,8 @@ if __name__ == "__main__":
     print('The arguments are: "program path" [, -b "binary input file", -t "time for generation (in s)", -l "timeout for mutant execution (in s)"]', flush=True)
     
     binfile = None
-    timelimit = 60
-    timeout = 2
+    timelimit = None
+    timeout = None
     print(len(sys.argv))
     if len(sys.argv) < 2:
         raise SystemExit("Please specifiy a .py file as argument.")

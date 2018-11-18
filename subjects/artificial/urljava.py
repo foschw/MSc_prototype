@@ -1,6 +1,30 @@
 # Source: https://github.com/vrthra/pychains
+# Augmented with a small test suite
 import string
-from pycore import dataparser as d
+import unittest
+
+class TestURL(unittest.TestCase):
+    def test_url_slash_missing_1(self):
+        with self.assertRaises(Exception):
+            URL("http:")
+
+    def test_url_slash_missing_2(self):
+        with self.assertRaises(Exception):
+            URL("http:/")    
+
+    def test_url_no_proto(self):
+        with self.assertRaises(Exception):
+            URL("://")
+
+    def test_authority_invalid(self):
+        with self.assertRaises(Exception):
+            URL("ftp://[")
+
+    def test_invalid_port(self):
+        with self.assertRaises(Exception):
+            URL("ssh://ksl.cn:-42")
+
+
 class URL:
     __slots__ = [
             'protocol',
@@ -137,7 +161,7 @@ class URL:
                                 ind += 1
                                 # port can be null according to RFC2396
                                 if (len(nhost) > (ind + 1)):
-                                    port = d.parse_int(nhost[ind+1:])
+                                    port = int(nhost[ind+1:])
                             else:
                                 raise Exception("Invalid authority field: " + authority)
                     else:
@@ -148,12 +172,12 @@ class URL:
                     if (ind >= 0):
                         # port can be null according to RFC2396
                         if (len(host) > (ind + 1)):
-                            port = d.parse_int(host[ind + 1:])
+                            port = int(host[ind + 1:])
                         host = host[0: ind]
             else:
                 host = ""
             if (port < -1):
-                raise Exception("Invalid port number :" + port)
+                raise Exception("Invalid port number :" + str(port))
             start = i
             # If the authority is defined then the path is defined by the
             # spec only; See RFC 2396 Section 5.2.4.

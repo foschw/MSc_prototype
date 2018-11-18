@@ -4,6 +4,9 @@ import subprocess
 import re
 import pickle
 import os
+from config import get_default_config
+
+current_config = None
 
 # Executes a .py file with a string argument.
 # Returns the exception in case one occured, "-1" if the execution failed and None otherwise.
@@ -70,8 +73,10 @@ def clean_and_fix_log(errs, logfile):
 	os.rename(tmp, logfile)
 
 def main(argv):
+	global current_config
+	current_config = get_default_config()
 	# Specify the original name of the script to check the results. 
-	# Uses the second argument as binary input file, or "rejected.bin" in case it is ommitted.
+	# Uses the second argument as binary input file, or the config value in case it is ommitted.
 	# The optional third argument controls whether the unverifiable scripts are to be removed.
 	if len(argv) < 2:
 		raise SystemExit("Please specify the script name!")
@@ -79,9 +84,9 @@ def main(argv):
 	scriptname = argv[1] if not argv[1].endswith(".py") else argv[1][:argv[1].rfind(".py")]
 	if scriptname.rfind("/"):
 		scriptname = scriptname[scriptname.rfind("/")+1:]
-	cause_file = "mutants/" + scriptname + ".log"
-	inputs_file = "rejected.bin" if len(argv) < 3 else argv[2]
-	clean_invalid = False if len(argv) < 4 else argv[3]
+	cause_file = (current_config["default_mut_dir"]+"/").replace("//","/") + scriptname + ".log"
+	inputs_file = current_config["default_rejected"] if len(argv) < 3 else argv[2]
+	clean_invalid = eval(current_config["default_clean_invalid"]) if len(argv) < 4 else argv[3]
 	all_inputs = []
 	all_mutants = []
 	behave = {}
@@ -182,7 +187,7 @@ def main(argv):
 			elif bhvr.find("accepted") >= 0:
 				mut_2.append(mut)
 
-	behave_file = "mutants/" + scriptname + "_verified.log"
+	behave_file = (current_config["default_mut_dir"]+"/").replace("//","/") + scriptname + "_verified.log"
 	if os.path.exists(behave_file):
 		os.remove(behave_file)
 	with open(behave_file, "w", encoding="UTF-8") as dest:

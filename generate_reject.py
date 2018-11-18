@@ -7,6 +7,9 @@ import taintedstr
 import random
 import pickle
 from timeit import default_timer as timer
+from config import get_default_config
+
+current_config = None
 
 # A class that allows retrieving list elements in a wrapping manner. 
 # Once an element is retrieved it will not appear again until each other element was returned once.
@@ -99,11 +102,13 @@ def swap(text):
 
 # Run pychains for roughly $timelimit$ seconds to get valid inputs
 def get_valid_inputs(arg, timelimit):
+    global current_config
     _mod = imp.load_source('mymod', arg)
     res = set()
     start = timer()
     best_time = 0
-    while timelimit > 0.9*best_time:
+    overhead_const = float(current_config["best_overhead"])
+    while timelimit > overhead_const*best_time:
         print(timelimit, "--------", flush=True)
         start_chain = timer()
         e = pychains.chain.Chain()
@@ -126,10 +131,11 @@ def get_valid_inputs(arg, timelimit):
 
 # Generate rejected strings by applying mutation operations
 def gen(arg, timelimit):
+    global current_config
     # If the string is too short do not use mutators that shrink it further
-    min_len = 5
+    min_len = int(current_config["min_mut_len"])
     # Mutation attempts per generated string since mutations are cheap but generation is expensive
-    mut_attempts = 100
+    mut_attempts = int(current_config["max_mut_attempts"])
     _mod = imp.load_source('mymod', arg)
     rejected = set()
     # Mutation operations well suited for short strings
@@ -164,9 +170,13 @@ def gen(arg, timelimit):
     return rejected
 
 def main(args):
+    # Read the config
+    global current_config
+    if not current_config:
+        current_config = get_default_config()
     # Generate rejected input strings
-    res = gen(args[1], int(args[2]) if len(args) > 2 else 5000)
-    outfile = args[3] if len(args) > 3 else "rejected.bin"
+    res = gen(args[1], int(args[2]) if len(args) > 2 else int(current_config["default_gen_time"]))
+    outfile = args[3] if len(args) > 3 else current_config["default_rejected"]
     resl = []
     for r in res:
         resl.append(r)

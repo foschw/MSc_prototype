@@ -4,6 +4,9 @@ import subprocess
 import re
 import os
 import glob
+from config import get_default_config
+
+current_config = None
 
 # Executes the test suite of a .py file
 # Returns the amount of tests passed and failed as a pair
@@ -38,6 +41,7 @@ def extract_test_stats(unittest_output):
 	return (total_tests-num_fail,num_fail)
 
 def main(argv):
+	current_config = get_default_config()
 	# Specify the original name of the script or its path to check the results. 
 	if len(argv) < 2:
 		raise SystemExit("Please specify the script name!")
@@ -45,8 +49,8 @@ def main(argv):
 	scriptname = argv[1] if not argv[1].endswith(".py") else argv[1][:argv[1].rfind(".py")]
 	if scriptname.rfind("/"):
 		scriptname = scriptname[scriptname.rfind("/")+1:]
-	mut_pattern = "mutants/" + scriptname + "/*.py"
-	test_res_fl = "mutants/" + scriptname + "_test_results.log"
+	mut_pattern = (current_config["default_mut_dir"]+"/").replace("//","/") + scriptname + "/*.py"
+	test_res_fl = (current_config["default_mut_dir"]+"/").replace("//","/") + scriptname + "_test_results.log"
 	scripts_f = []
 	scripts_p = []
 	for f in glob.glob(mut_pattern):

@@ -8,6 +8,7 @@ import functools
 from timeit import default_timer as timer
 import ast
 import astunparse
+from config import get_default_config
 
 # Maps a condition line to the line of its then branch
 cond_dict = {}
@@ -23,7 +24,7 @@ timeo = None
 time_start = None
 # target_type = type("")
 # By using the commented line instead we get a seizable improvement in execution time but may consume more memory
-target_type = type(taintedstr.tstr(''))
+target_type = eval("type("+get_default_config()["trace_type"]+")")
 # The AST of the original file. Stores where exceptions are manually raised and line numbers of conditional branches
 base_ast = None
 # Indicates which condition needs to be resolved at which call depth (call and return). 

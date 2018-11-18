@@ -11,6 +11,9 @@ import os
 import glob
 import imp
 from timeit import default_timer as timer
+from config import get_default_config
+
+current_config = None
 
 # Computes the "left difference" of two sets.
 # This returns two sets: 
@@ -118,17 +121,19 @@ def cleanup(mut_dir, completed):
             os.remove(fl)
 
 def main(argv):
+    global current_config
+    current_config = get_default_config()
     arg = argv[1]
     arg = arg.replace("\\", "/")
     ar1 = arg
     orig_file = ar1
     mut_dir = arg[arg.rfind("/")+1:arg.rfind(".")] if arg.rfind("/") >= 0 else arg[:arg.rfind(".")]
     script_name = mut_dir
-    mut_dir = "mutants/" + mut_dir + "/"
+    mut_dir = (current_config["default_mut_dir"]+"/").replace("//","/") + mut_dir + "/"
     # Store the reason why the mutation was completed
     mutants_with_cause = []
     # Timeout since our modifications may cause infinite loops
-    timeout = 2 if len(argv) < 4 or not argv[3] else argv[3]
+    timeout = int(current_config["min_timeout"]) if len(argv) < 4 or not argv[3] else argv[3]
     if not os.path.exists(mut_dir):
         os.makedirs(mut_dir)
     else:
@@ -138,7 +143,7 @@ def main(argv):
     str_cnt = 0
     # Mutation counter
     mut_cnt = 0
-    pick_file = argv[2] if len(argv) > 2 else "rejected.bin"
+    pick_file = argv[2] if len(argv) > 2 else current_config["default_rejected"]
     pick_handle = open(pick_file, 'rb')
     rej_strs = pickle.load(pick_handle)
 
@@ -163,7 +168,7 @@ def main(argv):
                 if time_elapsed > slowest_run:
                     slowest_run = time_elapsed
 
-    timeout = max(timeout, int(2*slowest_run)+1)
+    timeout = max(timeout, int(int(current_config["timeout_slow_multi"])*slowest_run)+1)
     try:
         (_, b_cdict, b_vrs, err) = argtracer.trace(ar1, basein, timeout=timeout)
     except Timeout:
