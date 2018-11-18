@@ -123,7 +123,7 @@ def main(argv):
 
 	# Check all mutants for behaviour changes
 	for my_mutant in all_mutants:
-		print("Checking mutant:", my_mutant)
+		print("Checking mutant:", my_mutant, flush=True)
 		# Check whether the valid string is rejected
 		exc_mutant_valid = execute_script_with_argument(my_mutant, basein)
 		if exc_mutant_valid and exc_mutant_valid != "-1":

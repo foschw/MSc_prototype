@@ -4,9 +4,10 @@
 # No warranty. Free to use/modify as you see fit. Trades speed for compactness.
 # Send ideas, bugs, simplifications to http://github.com/phensley
 # Copyright (c) 2010 Patrick Hensley <spaceboy@indirect.com>
-
+# Augmented with a small test suite
 # std
 import math
+import unittest
 import pycore.myio as io
 import types
 import sys
@@ -39,6 +40,44 @@ E_BADFLOAT = 'cannot emit floating point value "%s"'
 NEG_INF = float('-inf')
 POS_INF = float('inf')
 
+class TestJson(unittest.TestCase):
+    def test_null_invalid(self):
+        with self.assertRaises(JSONError):
+            from_json("[nul]")
+
+    def test_null(self):
+        self.assertEqual(from_json("null"),None)
+
+    def test_missing_closing_par(self):
+        with self.assertRaises(JSONError):
+            from_json("[null")
+
+    def test_true(self):
+        self.assertEqual(from_json("true"),True)
+
+    def test_false(self):
+        self.assertEqual(from_json("false"), False)
+
+    def test_valid_lst_1(self):
+        self.assertEqual(from_json('[\r"+fs==-7,-O6"]'), ['+fs==-7,-O6'])
+
+    def test_valid_lst_2(self):
+        self.assertEqual(from_json('[82,768\t\t\r\t\n\n\r \t\n,[\n,true,"\x0c2.\x0cq*t]eGK"]]'), [82, 768, [True, '\x0c2.\x0cq*t]eGK']])
+
+    def test_valid_lst_3(self):
+        self.assertEqual(from_json('[803\t\x0c\x0c\n\x0c,false\t,{,"P8X>xPM_u+|":""}]'), [803, False, {'P8X>xPM_u+|': ''}])
+
+    def test_valid_str_1(self):
+        self.assertEqual(from_json('"% 4ku27^i_L"'), '% 4ku27^i_L')
+
+    def test_valid_str_2(self):
+        self.assertEqual(from_json('\x0c"2.DSM&Jg}oy"'), '2.DSM&Jg}oy')
+
+    def test_valid_dict_1(self):
+        self.assertEqual(from_json('\t{"g\x0c\rZ5~^<#l>":""}'), {'g\x0c\rZ5~^<#l>': ''})
+
+    def test_valid_dict_2(self):
+        self.assertEqual(from_json('{,\x0c\n \x0c"FJ]_\rPd":[08\r,true,false]"hCZ=p2]\nj;,":""}'), {'FJ]_\rPd': [8, True, False], 'hCZ=p2]\nj;,': ''})
 
 class JSONError(Exception):
     def __init__(self, msg, stm=None, pos=0):

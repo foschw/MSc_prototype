@@ -19,8 +19,8 @@ def run_unittests_for_script(script):
 # Extracts the amount of test passes p and fails f as pair (p, f)
 def extract_test_stats(unittest_output):
 	outpt_lines = unittest_output.split("\n")
-	re_test_num = r"Ran \d+ test(s)? in \d(\.)?\d*s"
-	re_test_fails = r"FAILED \(((failures(=\d+)?)?(, )?(errors)?)=\d+\)"
+	re_test_num = r"^Ran \d+ test(s)? in \d(\.)?\d*s"
+	re_test_fails = r"^FAILED \(((failures(=\d+)?)?(, )?(errors)?)=\d+\)"
 	total_tests = 0
 	res_open = False
 	for l in outpt_lines:
@@ -35,7 +35,6 @@ def extract_test_stats(unittest_output):
 			num_fail = 0
 			for ob in re_num.findall(l):
 				num_fail += int(ob[1:])
-
 	return (total_tests-num_fail,num_fail)
 
 def main(argv):
@@ -53,6 +52,7 @@ def main(argv):
 	for f in glob.glob(mut_pattern):
 		if os.path.isfile(f):
 			f = f.replace("\\","/")
+			print("Running tests for: " + f, flush=True)
 			(tpass,tfail) = run_unittests_for_script(f)
 			if tfail == 0:
 				scripts_p.append((f,run_unittests_for_script(f)))
