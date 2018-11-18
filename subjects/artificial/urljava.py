@@ -24,6 +24,45 @@ class TestURL(unittest.TestCase):
         with self.assertRaises(Exception):
             URL("ssh://ksl.cn:-42")
 
+    def test_valid_1(self):
+        test_url = URL('NQ5xZPCZJ-r-Ahlwv://Le2nZ72<x9I75`p~+]\x0b]kwU1Q$@;_  z\rJ]>gN@/GsM]R`\x0b58k!:4D6R>}1]0|]c:CnO2Veh@ez5^E+5`"WLm.hGLH4k-OgZ6%CGdZHeSGj=>as1*V-rLxlJ`&]"qrdMj/i>%F"ps')
+        self.assertEqual(test_url.protocol,'nq5xzpczj-r-ahlwv')
+        self.assertEqual(test_url.host,';_  z\rJ]>gN@')
+        self.assertEqual(test_url.port, -1)
+        self.assertEqual(test_url.file, None)
+        self.assertEqual(test_url.path, '/GsM]R`\x0b58k!:4D6R>}1]0|]c:CnO2Veh@ez5^E+5`"WLm.hGLH4k-OgZ6%CGdZHeSGj=>as1*V-rLxlJ`&]"qrdMj/i>%F"ps')
+        self.assertEqual(test_url.query, "")
+        self.assertEqual(test_url.ref, None)
+
+    def test_valid_2(self):
+        test_url = URL("u.L://#>uT%HRE;h=JJz2]LW/K\r/M3^D@u]`/Gsl +s4o,z?<g%y>R4jZ<T|\t\n%(t.f5_pT1fC2Q;g(7pfzg0,6v&6\x0c7584b!EN.xGg|a5:(5T=`_2'.SgF*x_~&\\Ed|")
+        self.assertEqual(test_url.protocol,'u.l')
+        self.assertEqual(test_url.host,"")
+        self.assertEqual(test_url.port, -1)
+        self.assertEqual(test_url.file, None)
+        self.assertEqual(test_url.path, "")
+        self.assertEqual(test_url.query, "")
+        self.assertEqual(test_url.ref, ">uT%HRE;h=JJz2]LW/K\r/M3^D@u]`/Gsl +s4o,z?<g%y>R4jZ<T|\t\n%(t.f5_pT1fC2Q;g(7pfzg0,6v&6\x0c7584b!EN.xGg|a5:(5T=`_2'.SgF*x_~&\\Ed|")     
+
+    def test_valid_3(self):
+        test_url = URL('uCdMZjb82PA9Jz2dxr33lDByLb://7/j(v4&Qpu!R?r4wqRiE+@|"T,l[?R@yO9z\\Ogy7_+Prr1w\x0bsp:*YU4ewha%C9(qD\rPeKT|8pZ*kjH00f!/9QJn=')
+        self.assertEqual(test_url.protocol,'ucdmzjb82pa9jz2dxr33ldbylb')
+        self.assertEqual(test_url.host,"7")
+        self.assertEqual(test_url.port, -1)
+        self.assertEqual(test_url.file, None)
+        self.assertEqual(test_url.path, '/j(v4&Qpu!R')
+        self.assertEqual(test_url.query, 'r4wqRiE+@|"T,l[?R@yO9z\\Ogy7_+Prr1w\x0bsp:*YU4ewha%C9(qD\rPeKT|8pZ*kjH00f!/9QJn=')
+        self.assertEqual(test_url.ref, None)     
+
+    def test_valid_4(self):
+        test_url = URL("Sa2.DSMIg3yU1sV3daZR2lRJ74.L16J+KqEYmX.VnknmE4-eacS4+zhGdLACV7xjdw://fnhhB{\x0b5.3brS\n'T'\t [>MD5I\rkQ5SkREBmL2<:3#0M N \\}:\n$\n8^?f\nqpDA(( \\*_heDe-a4=x,>p[9gr i0N+R>iJ$R")
+        self.assertEqual(test_url.protocol,'sa2.dsmig3yu1sv3dazr2lrj74.l16j+kqeymx.vnknme4-eacs4+zhgdlacv7xjdw')
+        self.assertEqual(test_url.host,"fnhhB{\x0b5.3brS\n'T'\t [>MD5I\rkQ5SkREBmL2<")
+        self.assertEqual(test_url.port, 3)
+        self.assertEqual(test_url.file, None)
+        self.assertEqual(test_url.path, "")
+        self.assertEqual(test_url.query, "")
+        self.assertEqual(test_url.ref, '0M N \\}:\n$\n8^?f\nqpDA(( \\*_heDe-a4=x,>p[9gr i0N+R>iJ$R') 
 
 class URL:
     __slots__ = [
