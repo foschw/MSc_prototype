@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # This is the CGI decode function as shown in the course (source: https://github.com/vrthra/pychains)
+# New in this version: A small testsuite
 import sys
+import unittest
 
 hex_values = {
     '0': 0,
@@ -26,6 +28,31 @@ hex_values = {
     'E': 14,
     'F': 15,
 }
+
+class TestDecode(unittest.TestCase):
+    def test_percent_valid_1(self):
+        self.assertEqual(cgi_decode("a%20"),"a ")
+
+    def test_percent_valid_2(self):
+        self.assertEqual(cgi_decode("z%4b"),"zK")
+
+    def test_percent_invalid_1(self):
+        with self.assertRaises(Exception):
+            cgi_decode("a%")
+
+    def test_percent_invalid_2(self):
+        with self.assertRaises(Exception):
+            cgi_decode("a%g1")
+
+    def test_percent_invalid_3(self):
+        with self.assertRaises(Exception):
+            cgi_decode("a%1")
+
+    def test_normal_1(self):
+        self.assertEqual(cgi_decode("test"), "test")
+
+    def test_normal_2(self):
+        self.assertEqual(cgi_decode("http://www.google.com"), "http://www.google.com")
 
 def cgi_decode(s):
     t = ""

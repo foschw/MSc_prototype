@@ -5,6 +5,7 @@ sys.path.append('.')
 from generate_reject import main as gen
 from find_mutation_lines import main as mutate
 from check_results import main as check
+from run_unittests import main as run_tests
 
 def main(argv):
     # The argument order is: program path, binary input file, number of pychains iterations
@@ -22,9 +23,14 @@ def main(argv):
     print("Starting mutation...", prog, flush=True)
     # Run the mutation algorithm
     mutate([None, prog, binfile, timeout])
-    # Finally check whether the results are fine.
+    # Check whether the results are fine and remove potentially problematic scripts
     print("Testing result integrity...", flush=True)
     check([None, prog, binfile, True])
+    # Finally run the program's test suite
+    print("Running unittests...", flush=True)
+    run_tests([None, prog])
+    print()
+    print("Done.")
 
 if __name__ == "__main__":
     print('The arguments are: "program path" [, -b "binary input file", -t "time for generation (in s)", -l "timeout for mutant execution (in s)"]', flush=True)
