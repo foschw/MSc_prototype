@@ -12,6 +12,8 @@ import glob
 import imp
 from timeit import default_timer as timer
 from config import get_default_config
+import ast
+import astunparse
 
 current_config = None
 
@@ -49,8 +51,12 @@ def sanitize(valuestring):
 def make_new_conditions(old_cond, file, b_varsat, varsat):
     global manual_errs
     (lineno, state) = old_cond
+    possible_conditions = []
     # Get the full condition string
     full_str = manual_errs.get_if_from_line(lineno, file)
+    # Compute partial inversions
+    for part_inv in get_partial_inversions(full_str):
+        possible_conditions.append(part_inv)
     # Reduce the string to only the condition, i.e. "if True:" becomes "True"
     cond_str = full_str[full_str.find("if")+3:full_str.rfind(":")]
     # Conditions that hold for the last execution of the line and not for the baseline run
@@ -64,7 +70,6 @@ def make_new_conditions(old_cond, file, b_varsat, varsat):
     if not choices:
         return []
 
-    possible_conditions = []
     # Generate all conditions that may flip the truth value
     for valid_cond in choices:
         if state:
@@ -82,6 +87,50 @@ def make_new_conditions(old_cond, file, b_varsat, varsat):
         possible_conditions.append(str(nc2))
 
     return possible_conditions
+
+# Inverts an ast node, i.e. either adds or removes a unary not
+def invert_ast_node(node):
+    if type(node) == ast.UnaryOp:
+        return node.operand
+    else:
+        new_node = ast.UnaryOp()
+        new_node.op = ast.Not()
+        new_node.operand = node
+        return new_node
+
+# Returns a list of conditions where a part is inverted
+def get_partial_inversions(condition_str):
+    # Remove "(el)if" and ":"
+    left_part = condition_str[:condition_str.find("if ")+3]
+    cond = (condition_str[condition_str.find("if ")+3:]).rstrip()[:-1]
+    inv_num = 0
+    res = []
+    # Count how many partial inversions exist, i.e. invertible Expr and BoolOp nodes
+    for node in ast.walk(ast.fix_missing_locations(ast.parse(cond))):
+        if type(node) == ast.Expr:
+            inv_num += 1
+        elif type(node) == ast.BoolOp:
+            inv_num += len(node.values)
+    tidx = 0
+    # Collect the inversions
+    while tidx < inv_num:
+        curr_ast = ast.fix_missing_locations(ast.parse(cond))
+        idx = 0
+        for node in ast.walk(curr_ast):
+            if type(node) == ast.Expr:
+                if tidx == idx:
+                    tidx += 1
+                    node.value = invert_ast_node(node.value)
+                    break
+                idx += 1
+            elif type(node) == ast.BoolOp:
+                if tidx in range(idx,idx+len(node.values)):
+                    tidx += 1
+                    node.values[tidx-idx-1] = invert_ast_node(node.values[tidx-idx-1])
+                    break
+                idx += len(node.values)
+        res.append(left_part + astunparse.unparse(curr_ast).strip().rstrip() + ":")
+    return res
 
 # Generate all possible new conditions from a delta (pair of primary and secondary condition differences).
 def get_possible_fixes(delta, file, b_varsat, varsat):
