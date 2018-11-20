@@ -82,9 +82,9 @@ def make_new_conditions(old_cond, file, b_varsat, varsat):
             new_cond = "(" + cond_str.lstrip() + ") or " + valid_cond
         
         nc1 = full_str[:full_str.find("if")+2] + " " + new_cond + ":"
-        nc2 = full_str[:full_str.find("if")+2] + " " + valid_cond + ":"
+        #nc2 = full_str[:full_str.find("if")+2] + " " + valid_cond + ":"
         possible_conditions.append(str(nc1))
-        possible_conditions.append(str(nc2))
+        #possible_conditions.append(str(nc2))
 
     return possible_conditions
 
