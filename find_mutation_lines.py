@@ -163,10 +163,11 @@ def file_copy_replace(target, source, modifications):
 
 # Removes all mutants that are intermediate (i.e. we cannot tell whether they are equivalent)
 # The argument completed stores all non-equivalent mutants
-def cleanup(mut_dir, completed):
+def cleanup(mut_dir):
+    re_mutant = re.compile(r"_\d+_\d+\.py$")
     for fl in glob.glob(mut_dir + "/*.py"):
         fl = fl.replace("\\", "/")
-        if fl not in completed:
+        if re_mutant.search(fl):
             os.remove(fl)
 
 def main(argv):
@@ -179,6 +180,8 @@ def main(argv):
     mut_dir = arg[arg.rfind("/")+1:arg.rfind(".")] if arg.rfind("/") >= 0 else arg[:arg.rfind(".")]
     script_name = mut_dir
     mut_dir = (current_config["default_mut_dir"]+"/").replace("//","/") + mut_dir + "/"
+    # Add script's directory to path
+    sys.path.insert(0, mut_dir)
     # Store the reason why the mutation was completed
     mutants_with_cause = []
     # Timeout since our modifications may cause infinite loops
@@ -186,7 +189,7 @@ def main(argv):
     if not os.path.exists(mut_dir):
         os.makedirs(mut_dir)
     else:
-        cleanup(mut_dir, [])
+        cleanup(mut_dir)
 
     # Index of the string currently processed
     str_cnt = 0

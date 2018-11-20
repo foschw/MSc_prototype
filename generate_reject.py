@@ -174,6 +174,8 @@ def main(args):
     global current_config
     if not current_config:
         current_config = get_default_config()
+    # Add the subject's path to sys.path
+    sys.path.insert(0, args[1][:args[1].rfind("/")+1])
     # Generate rejected input strings
     res = gen(args[1], int(args[2]) if len(args) > 2 else int(current_config["default_gen_time"]))
     outfile = args[3] if len(args) > 3 else current_config["default_rejected"]

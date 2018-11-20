@@ -11,9 +11,10 @@ current_config = None
 # Executes the test suite of a .py file
 # Returns the amount of tests passed and failed as a pair
 def run_unittests_for_script(script):
-	cmd = ["python", "-m", "unittest", script]
+	cmd = ["python", "-m", "unittest", script[script.rfind("/")+1:]]
+	script_dir = os.path.abspath(script[:script.rfind("/")+1]).replace("\\","/")
 	try:
-		proc = subprocess.Popen(cmd, shell=False,stderr=subprocess.PIPE)
+		proc = subprocess.Popen(cmd, shell=False,stderr=subprocess.PIPE,cwd=script_dir)
 		res = proc.communicate()[1].decode(sys.stderr.encoding)
 	except:
 		raise SystemExit("Unittest execution failed.")
