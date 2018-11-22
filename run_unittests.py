@@ -60,7 +60,8 @@ def main(argv):
 			print("Running tests for: " + f, flush=True)
 			(tpass,tfail) = run_unittests_for_script(f)
 			if tfail == 0:
-				scripts_p.append((f,run_unittests_for_script(f)))
+				if tpass > 0:
+					scripts_p.append((f,run_unittests_for_script(f)))
 			else:
 				scripts_f.append((f,run_unittests_for_script(f)))
 
