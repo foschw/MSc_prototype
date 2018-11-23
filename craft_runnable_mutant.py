@@ -15,6 +15,8 @@ def clone_and_replace(scrpt, base_dir, sub_dir, orig_script):
 	os.remove(scrpt)
 
 def split_path_at_base(path, base):
+	if not base:
+		return ("", path)
 	idx = 0
 	for i in range(min(len(path),len(base))):
 		if path[idx] != base[idx]:

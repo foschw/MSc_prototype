@@ -5,6 +5,8 @@ import re
 import pickle
 import os
 from config import get_default_config
+from craft_runnable_mutant import split_path_at_base
+import shutil
 
 current_config = None
 
@@ -49,7 +51,7 @@ def extract_error_name(stderr_string):
 
 
 # Removes potentially invalid mutants based on the error list and fixes the log accordingly
-def clean_and_fix_log(errs, logfile):
+def clean_and_fix_log(errs, logfile, sub_dir=None, script_base_name=None):
 	tmp = logfile + "_"
 	still_alive = set()
 	with open(tmp, "w", encoding="UTF-8") as dest:
@@ -59,13 +61,19 @@ def clean_and_fix_log(errs, logfile):
 					dest.write(line)
 				else:
 					scrpt, cause = eval(line)
+					if script_base_name:
+						scrpt = scrpt[:-3] + ("/" + sub_dir + "/").replace("//","/") + script_base_name
 					if not errs.get(scrpt) or cause.replace("string", "string not") not in errs.get(scrpt):
 						dest.write(line)
 						still_alive.add(scrpt)
 
 	for fl in errs:
 		if fl not in still_alive:
-			os.remove(fl)
+			if not script_base_name:
+				os.remove(fl)
+			else:
+				fl = fl[:fl.rfind("/")+1]
+				shutil.rmtree(fl)
 
 	if os.path.exists(logfile + ".old"):
 		os.remove(logfile + ".old")
@@ -81,12 +89,15 @@ def main(argv):
 	if len(argv) < 2:
 		raise SystemExit("Please specify the script name!")
 
+	base_dir = "" if len(argv) < 4 else argv[3]
+
 	scriptname = argv[1] if not argv[1].endswith(".py") else argv[1][:argv[1].rfind(".py")]
+	(sub_dir, scrpt) = split_path_at_base(scriptname, base_dir)
 	if scriptname.rfind("/"):
 		scriptname = scriptname[scriptname.rfind("/")+1:]
 	cause_file = (current_config["default_mut_dir"]+"/").replace("//","/") + scriptname + ".log"
 	inputs_file = current_config["default_rejected"] if len(argv) < 3 else argv[2]
-	clean_invalid = eval(current_config["default_clean_invalid"]) if len(argv) < 4 else argv[3]
+	clean_invalid = eval(current_config["default_clean_invalid"]) if len(argv) < 5 else argv[4]
 	all_inputs = []
 	all_mutants = []
 	behave = {}
@@ -98,9 +109,13 @@ def main(argv):
 			if num == 0:
 				original_file = line.strip()
 				original_file = original_file[original_file.find(":")+3:-1]
+				script_base_name = original_file[original_file.rfind("/")+1:]
 			else:
 				# Use eval to get the pair representation of the line. The first element is the mutant.
 				the_mutant = eval(line)[0]
+				# Adjust path if handling a directory
+				if base_dir:
+					the_mutant = the_mutant[:-3] + ("/" + sub_dir + "/").replace("//","/") + script_base_name
 				effect_set = mutant_to_cause.get(the_mutant) if mutant_to_cause.get(the_mutant) else set()
 				# Code mutant behaviour as integer for easy comparison
 				if eval(line)[1].find("rejected") > -1:
@@ -135,7 +150,12 @@ def main(argv):
 			bh = behave.get(my_mutant) if behave.get(my_mutant) else []
 			bh.append("valid string rejected")
 			behave[my_mutant] = bh
-		my_input = my_mutant[:my_mutant.rfind("_")]
+		if base_dir:
+			my_input = my_mutant[:my_mutant.rfind("/")]
+			my_input = my_input[my_input.rfind("/")+1:]
+			my_input = my_input[:my_input.rfind("_")]
+		else:
+			my_input = my_mutant[:my_mutant.rfind("_")]
 		my_input = inputs[int(my_input[my_input.rfind("_")+1:])]
 		# Check the output of the original script for the rejected string
 		exc_orig_invalid = execute_script_with_argument(original_file, my_input)
@@ -171,7 +191,10 @@ def main(argv):
 	if clean_invalid and errs:
 		print()
 		print("Removing potentially invalid scripts...")
-		clean_and_fix_log(errs, cause_file)
+		if not base_dir:
+			clean_and_fix_log(errs, cause_file)
+		else:
+			clean_and_fix_log(errs, cause_file, sub_dir, script_base_name)
 
 	print()
 	# Assign mutant class to scripts
