@@ -61,9 +61,9 @@ def main(argv):
 			(tpass,tfail) = run_unittests_for_script(f)
 			if tfail == 0:
 				if tpass > 0:
-					scripts_p.append((f,run_unittests_for_script(f)))
+					scripts_p.append((f,(tpass,tfail)))
 			else:
-				scripts_f.append((f,run_unittests_for_script(f)))
+				scripts_f.append((f,(tpass,tfail)))
 
 	# Write the test stats to a file. Mutants that fail no tests are at the top if they exist.
 	with open(test_res_fl, "w", encoding="UTF-8") as dest:
