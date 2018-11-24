@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import unittest
-from script_2 import get_sum_safe
+from .script_2 import get_sum_safe
 
 class TestScript(unittest.TestCase):
 

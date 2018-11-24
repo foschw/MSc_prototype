@@ -5,6 +5,7 @@ import re
 import os
 import glob
 from config import get_default_config
+from craft_runnable_mutant import split_path_at_base
 
 current_config = None
 
@@ -48,12 +49,21 @@ def main(argv):
 		raise SystemExit("Please specify the script name!")
 
 	scriptname = argv[1] if not argv[1].endswith(".py") else argv[1][:argv[1].rfind(".py")]
-	if scriptname.rfind("/"):
+	base_dir = "" if len(argv) < 3 else argv[2]
+	(sub_dir, script_name) = split_path_at_base(scriptname, base_dir)
+	if scriptname.rfind("/") >= 0:
 		scriptname = scriptname[scriptname.rfind("/")+1:]
 	mut_pattern = (current_config["default_mut_dir"]+"/").replace("//","/") + scriptname + "/*.py"
 	test_res_fl = (current_config["default_mut_dir"]+"/").replace("//","/") + scriptname + "_test_results.log"
 	scripts_f = []
 	scripts_p = []
+	targets = []
+	if base_dir:
+		prog_folder = re.compile((current_config["default_mut_dir"]+"/").replace("//","/") + scriptname + "/" + scriptname + "_\d+_\d+/?$")
+		for f in glob.glob((current_config["default_mut_dir"]+"/").replace("//","/") + scriptname + "/*"):
+			f = f.replace("\\","/")
+			if prog_folder.search(f):
+				targets.append(f + ("/" + sub_dir + "/").replace("//","/") + script_name + ".py")
 	for f in glob.glob(mut_pattern):
 		if os.path.isfile(f):
 			f = f.replace("\\","/")

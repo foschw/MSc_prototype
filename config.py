@@ -26,6 +26,8 @@ def get_default_config(conf_path=None):
 		# The timeout from the actual script execution is calcualted as int(multi*(slowest seen execution)) + 1. Multi can be adjusted here (default is 2).
 		"timeout_slow_multi" : "2",
 		# Remove potentially invalid scripts after checking?
-		"default_clean_invalid" : "False"
+		"default_clean_invalid" : "False",
+		# File containing the adjustments of relative imports
+		"default_imp_tmp" : "loc_level.dict"
 		}
 		return DEFAULT_CONFIG
