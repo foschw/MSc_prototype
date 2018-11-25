@@ -18,7 +18,7 @@ def main(args):
 		raise SystemExit("Please specify whether to strip (-s) or restore (-r) imports")
 
 	loc_fl = (current_conf["default_mut_dir"] + "/").replace("//","/") + current_conf.get("default_imp_tmp")
-	opts, args = getopt.getopt(args[2:], "sr")
+	opts, args = getopt.getopt(args[2:], "sr:")
 	for opt, a in opts:
 		if opt == "-s":
 			print("Adjusting relative imports...", target_dir, flush=True)
@@ -31,6 +31,7 @@ def main(args):
 				fl = fl.replace("\\","/")
 				strip_and_store_imports(fl, loc_fl)
 		elif opt == "-r":
+			base_dir = a
 			print("Restoring imports for:", target_dir)
 			with open(loc_fl, "r", encoding="UTF-8") as f:
 				str_dict_dict = {}
@@ -41,8 +42,8 @@ def main(args):
 
 			for fl in glob.iglob(target_dir + "/**/*.py", recursive=True):
 				fl = fl.replace("\\","/")
-				if str_dict_dict.get(fl):
-					restore_imports_for_file(fl, str_dict_dict[fl])
+				if str_dict_dict.get(fl.replace(target_dir,base_dir).replace("//","/")):
+					restore_imports_for_file(fl, str_dict_dict[fl.replace(target_dir,base_dir).replace("//","/")])
 
 
 def strip_and_store_imports(fl, loc_fl):
