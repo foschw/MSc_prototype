@@ -7,6 +7,7 @@ import os
 from config import get_default_config
 from craft_runnable_mutant import split_path_at_base
 import shutil
+from adjust_imports import main as adjust
 
 current_config = None
 
@@ -116,6 +117,8 @@ def main(argv):
 				# Adjust path if handling a directory
 				if base_dir:
 					the_mutant = the_mutant[:-3] + ("/" + sub_dir + "/").replace("//","/") + script_base_name
+				the_mutant = the_mutant.replace("//","/")
+				adjust([None, the_mutant[:the_mutant.rfind("/")], base_dir[:-1]+"_stripped/"])
 				effect_set = mutant_to_cause.get(the_mutant) if mutant_to_cause.get(the_mutant) else set()
 				# Code mutant behaviour as integer for easy comparison
 				if eval(line)[1].find("rejected") > -1:
@@ -135,7 +138,6 @@ def main(argv):
 		inputs.append(str(cand[0]))
 
 	errs = {}
-
 	# Check whether the used valid string is actually valid
 	exc_orig = execute_script_with_argument(original_file, basein)
 	if exc_orig:
