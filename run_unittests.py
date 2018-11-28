@@ -3,7 +3,6 @@ import sys
 import subprocess
 import re
 import os
-import glob
 from config import get_default_config
 from craft_runnable_mutant import split_path_at_base
 
@@ -53,27 +52,28 @@ def main(argv):
 	(sub_dir, script_name) = split_path_at_base(scriptname, base_dir)
 	if scriptname.rfind("/") >= 0:
 		scriptname = scriptname[scriptname.rfind("/")+1:]
-	mut_pattern = (current_config["default_mut_dir"]+"/").replace("//","/") + scriptname + "/*.py"
+	behave_file = (current_config["default_mut_dir"]+"/").replace("//","/") + scriptname + "_verified.log"
 	test_res_fl = (current_config["default_mut_dir"]+"/").replace("//","/") + scriptname + "_test_results.log"
 	scripts_f = []
 	scripts_p = []
 	targets = []
-	if base_dir:
-		prog_folder = re.compile((current_config["default_mut_dir"]+"/").replace("//","/") + scriptname + "/" + scriptname + "_\d+_\d+/?$")
-		for f in glob.glob((current_config["default_mut_dir"]+"/").replace("//","/") + scriptname + "/*"):
-			f = f.replace("\\","/")
-			if prog_folder.search(f):
-				targets.append(f + ("/" + sub_dir + "/").replace("//","/") + script_name + ".py")
-	for f in glob.glob(mut_pattern):
-		if os.path.isfile(f):
-			f = f.replace("\\","/")
-			print("Running tests for: " + f, flush=True)
-			(tpass,tfail) = run_unittests_for_script(f)
-			if tfail == 0:
-				if tpass > 0:
-					scripts_p.append((f,(tpass,tfail)))
-			else:
-				scripts_f.append((f,(tpass,tfail)))
+
+	with open(behave_file, "r", encoding="UTF-8") as bf: 
+		for _,line in enumerate(bf):
+			try:
+				mtnt = eval(line)
+				targets.append(mtnt)
+			except:
+				continue
+
+	for f in targets:
+		print("Running tests for: " + f, flush=True)
+		(tpass,tfail) = run_unittests_for_script(f)
+		if tfail == 0:
+			if tpass > 0:
+				scripts_p.append((f,(tpass,tfail)))
+		else:
+			scripts_f.append((f,(tpass,tfail)))
 
 	# Write the test stats to a file. Mutants that fail no tests are at the top if they exist.
 	with open(test_res_fl, "w", encoding="UTF-8") as dest:

@@ -8,6 +8,7 @@ from check_results import main as check
 from run_unittests import main as run_tests
 from craft_runnable_mutant import main as craft
 from config import get_default_config
+from adjust_imports import main as adjust
 
 current_config = None
 
@@ -19,16 +20,22 @@ def main(argv):
     timelimit = int(current_config["default_gen_time"]) if not argv[3] else argv[3]
     timeout = int(current_config["min_timeout"]) if not argv[4] else argv[4]
     base_dir = None if not argv[5] else argv[5]
+    if base_dir and not base_dir.endswith("/"):
+        base_dir = base_dir + "/"
+
+    adj_dir = base_dir if base_dir else prog[:prog.rfind("/")+1]
+    print("Adjusting imports...", adj_dir, flush=True)
+    adjust([None, adj_dir, None])
     # Generate inputs in case no binary file is supplied
     if not argv[2]:
         print("Generating inputs for:", prog, "...", flush=True)
-        gen([None, prog, timelimit, binfile])
+        gen([None, prog.replace(adj_dir,adj_dir[:-1]+"_stripped/"), timelimit, binfile])
     # Otherwise use the given inputs
     else:
         print("Using inputs from:", binfile, flush=True)
     print("Starting mutation...", prog, flush=True)
     # Run the mutation algorithm
-    mutate([None, prog, binfile, timeout])
+    mutate([None, prog.replace(adj_dir,adj_dir[:-1]+"_stripped/"), binfile, timeout])
     # Create full copy of project to make each mutant runnable (requires -d)
     if base_dir:
         print("Renaming and copying required files....")
@@ -38,7 +45,7 @@ def main(argv):
     check([None, prog, binfile, base_dir, True])
     # Finally run the program's test suite
     print("Running unittests...", flush=True)
-    run_tests([None, prog])
+    run_tests([None, prog, base_dir])
     print()
     print("Done.")
 

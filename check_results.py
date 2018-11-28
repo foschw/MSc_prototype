@@ -218,17 +218,17 @@ def main(argv):
 		if mut_0:
 			dest.write("Valid string rejected:\n")
 			for m_0 in mut_0:
-				dest.write(m_0 + "\n")
+				dest.write(repr(m_0) + "\n")
 			dest.write("\n")
 		if mut_1:
 			dest.write("Invalid string raises new exception:\n")
 			for m_1 in mut_1:
-				dest.write(m_1 + "\n")
+				dest.write(repr(m_1) + "\n")
 			dest.write("\n")
 		if mut_2:
 			dest.write("Invalid string accepted:\n")
 			for m_2 in mut_2:
-				dest.write(m_2 + "\n")
+				dest.write(repr(m_2) + "\n")
 
 if __name__ == "__main__":
 	main(sys.argv)
