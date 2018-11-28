@@ -118,7 +118,8 @@ def main(argv):
 				if base_dir:
 					the_mutant = the_mutant[:-3] + ("/" + sub_dir + "/").replace("//","/") + script_base_name
 				the_mutant = the_mutant.replace("//","/")
-				adjust([None, the_mutant[:the_mutant.rfind("/")], base_dir[:-1]+"_stripped/"])
+				adj_dir = base_dir if base_dir else scriptname[:scriptname.rfind("/")]
+				adjust([None, the_mutant[:the_mutant.rfind("/")], adj_dir[:-1]+"_stripped/"])
 				effect_set = mutant_to_cause.get(the_mutant) if mutant_to_cause.get(the_mutant) else set()
 				# Code mutant behaviour as integer for easy comparison
 				if eval(line)[1].find("rejected") > -1:

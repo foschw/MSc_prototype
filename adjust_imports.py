@@ -25,18 +25,19 @@ def main(args):
 			fl = fl.replace("\\","/")
 			strip_and_store_imports(fl, loc_fl)
 	else:
-		print("Restoring imports for:", target_dir)
-		with open(loc_fl, "r", encoding="UTF-8") as f:
-			str_dict_dict = {}
-			for _, line in enumerate(f):
-				(flp, fld) = eval(line)
-				fld = eval(fld)
-				str_dict_dict[flp] = fld
+		if os.path.exists(loc_fl):
+			print("Restoring imports for:", target_dir)
+			with open(loc_fl, "r", encoding="UTF-8") as f:
+				str_dict_dict = {}
+				for _, line in enumerate(f):
+					(flp, fld) = eval(line)
+					fld = eval(fld)
+					str_dict_dict[flp] = fld
 
-		for fl in glob.iglob(target_dir + "/**/*.py", recursive=True):
-			fl = fl.replace("\\","/")
-			if str_dict_dict.get(fl.replace(target_dir,base_dir).replace("//","/")):
-				restore_imports_for_file(fl, str_dict_dict[fl.replace(target_dir,base_dir).replace("//","/")])
+			for fl in glob.iglob(target_dir + "/**/*.py", recursive=True):
+				fl = fl.replace("\\","/")
+				if str_dict_dict.get(fl.replace(target_dir,base_dir).replace("//","/")):
+					restore_imports_for_file(fl, str_dict_dict[fl.replace(target_dir,base_dir).replace("//","/")])
 
 # Removes all relative imports and replaces them with absolute ones. Logs the original import level in loc_fl
 def strip_and_store_imports(fl, loc_fl):
