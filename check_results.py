@@ -93,6 +93,8 @@ def main(argv):
 	base_dir = "" if len(argv) < 4 else argv[3]
 
 	scriptname = argv[1] if not argv[1].endswith(".py") else argv[1][:argv[1].rfind(".py")]
+	original_file = scriptname + ".py"
+	script_base_name = original_file[original_file.rfind("/")+1:]
 	(sub_dir, scrpt) = split_path_at_base(scriptname, base_dir)
 	if scriptname.rfind("/"):
 		scriptname = scriptname[scriptname.rfind("/")+1:]
@@ -107,11 +109,7 @@ def main(argv):
 	with open(cause_file, "r", encoding="UTF-8") as causes:
 		for num, line in enumerate(causes):
 			# Get the path to the original script
-			if num == 0:
-				original_file = line.strip()
-				original_file = original_file[original_file.find(":")+3:-1]
-				script_base_name = original_file[original_file.rfind("/")+1:]
-			else:
+			if num > 0:
 				# Use eval to get the pair representation of the line. The first element is the mutant.
 				the_mutant = eval(line)[0]
 				# Adjust path if handling a directory
