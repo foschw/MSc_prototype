@@ -19,7 +19,8 @@ def get_default_config(conf_path=None):
 		"min_mut_len" : "5",
 		# Maximum attempts of how often a valid string gets mutated to get an invalid string
 		"max_mut_attempts" : "100",
-		# The type of arguments to trace. taintedstr.tstr is recommended for accuracy, using str may help speed
+		# The type of arguments to trace. taintedstr.tstr is recommended for accuracy, using str may help compatibility.
+		#"trace_type" : "''",
 		"trace_type" : "taintedstr.tstr('')",
 		# Default folder where mutation results are stored
 		"default_mut_dir" : "mutants/",

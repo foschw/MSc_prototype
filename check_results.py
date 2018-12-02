@@ -32,22 +32,13 @@ def extract_error_name(stderr_string):
 		return "-1"
 	
 	err_arr = stderr_string.split("\n")
-	skip_next = False
-	started = False
-	re_skipnext = re.compile(r'\s*File "')
-	for errmsg in err_arr:
-		if len(errmsg) > 1:
-			if not started:
-				started = True
-			elif skip_next:
-				skip_next = False
-			elif re.match(re_skipnext, errmsg):
-				skip_next = True
-			elif errmsg.find(":") > 0:
-				exc_name = errmsg.lstrip()
-				break
+	for idx in reversed(range(len(err_arr))):
+		if err_arr[idx] and (err_arr[idx].find(":") > 0 or not re.match(r"\s+", err_arr[idx])):
+			exc_name = err_arr[idx].lstrip().rstrip()
+			break
+	if exc_name.find(":") > -1:
+		exc_name = exc_name[:exc_name.find(":")]
 
-	exc_name = exc_name[:exc_name.find(":")]
 	return exc_name
 
 
@@ -153,6 +144,10 @@ def main(argv):
 			behave[my_mutant] = bh
 		if base_dir:
 			my_input = my_mutant[:my_mutant.rfind("/")]
+			if sub_dir:
+				if not my_input.endswith("/"):
+					my_input = my_input + "/"
+				my_input = my_input[:my_input.rfind(sub_dir)-1]
 			my_input = my_input[my_input.rfind("/")+1:]
 			my_input = my_input[:my_input.rfind("_")]
 		else:

@@ -202,23 +202,29 @@ def main(argv):
     # Precompute the locations of conditions and the lines of their then and else case and format the file properly
     global manual_errs
     manual_errs = argtracer.compute_base_ast(ar1, mut_dir + script_name + ".py")
-
     ar1 = mut_dir + script_name + ".py"
 
     # Record how long the slowest execution takes to have a better prediction of the required timeout
     slowest_run = 0
     # Get base values from the non-crashing run with the longest input
     basein = ""
+    progress = 1
     for cand in rej_strs:
         basein = cand[1] if len(cand[1]) > len(basein) else basein
+        pos = 0
         for str_inpt in cand:
             start_time = timer()
             try:
-                argtracer.trace(ar1, str_inpt)
+                print("Tracing:", progress, "/", 2*len(rej_strs), flush=True)
+                (_,_,_,someerror) = argtracer.trace(ar1, str_inpt)
+                if pos == 1 and someerror:
+                    raise SystemExit("Invalid input: " + repr(str_inpt) + ".\nAborted.")
             finally:
+                pos += 1
                 time_elapsed = timer() - start_time
                 if time_elapsed > slowest_run:
                     slowest_run = time_elapsed
+                progress += 1
 
     timeout = max(timeout, int(int(current_config["timeout_slow_multi"])*slowest_run)+1)
     try:
