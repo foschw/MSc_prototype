@@ -34,24 +34,22 @@ cond_flag = {}
 depth = -1
 
 # The AST that stores where exceptions are raised as well as the condition to then branch mapping-
-class RaiseAndCondAST:
+class CondAST:
 	def __init__(self, sourcefile, deformattedfile):
 		# Get the program's AST
 		self.source = sourcefile
-		self.myast = ast.parse(RaiseAndCondAST.expr_from_source(sourcefile), sourcefile)
+		self.myast = ast.parse(CondAST.expr_from_source(sourcefile), sourcefile)
 		ast.fix_missing_locations(self.myast)
 		# Use ASTUnparse to get uniform formatting
 		with open(deformattedfile,"w", encoding="UTF-8") as defile:
 			defile.write(astunparse.unparse(self.myast))
-		self.myast = ast.parse(RaiseAndCondAST.expr_from_source(deformattedfile), deformattedfile)
+		self.myast = ast.parse(CondAST.expr_from_source(deformattedfile), deformattedfile)
 		ast.fix_missing_locations(self.myast)
-		# Stores where raise statements are located
-		self.exc_lines = []
 		# Stores for each condition line the line of its then branch
 		self.cond_dict = {}
 		self.compute_lines()		
 
-	# Find all lines that contain raise statements as well as conditional mappings
+	# Find all conditional mappings
 	def compute_lines(self):
 		for stmnt in ast.walk(self.myast):
 			if isinstance(stmnt, ast.If):
@@ -59,14 +57,6 @@ class RaiseAndCondAST:
 				endline = stmnt.body[0].lineno
 				if not self.cond_dict.get(startline):
 					self.cond_dict[startline] = endline
-			elif isinstance(stmnt, ast.Raise):
-				for sm in ast.walk(stmnt):
-					if hasattr(sm, "lineno") and sm.lineno not in self.exc_lines:
-						self.exc_lines.append(sm.lineno)
-
-	# Checks whether a given line manually raises an exception
-	def is_exception_line(self, lineno):
-		return lineno in self.exc_lines
 
 	# Checks whether a given line contains a conditional statement
 	def is_condition_line(self, lineno):
@@ -106,7 +96,7 @@ class Timeout(Exception):
 # Computes the AST for the sourcefile and sets it globally
 def compute_base_ast(sourcefile, defile):
 	global base_ast
-	base_ast = RaiseAndCondAST(sourcefile, defile)
+	base_ast = CondAST(sourcefile, defile)
 	return base_ast
 
 def line_tracer(frame, event, arg):
