@@ -34,6 +34,9 @@ def main(argv):
     else:
         print("Using inputs from:", binfile, flush=True)
     print("Starting mutation...", prog, flush=True)
+    # Add the script's base directory to path
+    if base_dir:
+        sys.path.insert(0, base_dir)
     # Run the mutation algorithm
     mutate([None, prog.replace(adj_dir,adj_dir[:-1]+"_stripped/"), binfile, timeout])
     # Create full copy of project to make each mutant runnable (requires -d)
