@@ -5,7 +5,7 @@ import re
 import pickle
 import os
 from config import get_default_config
-from craft_runnable_mutant import split_path_at_base
+from tidydir import TidyDir as TidyDir
 import shutil
 from adjust_imports import main as adjust
 
@@ -81,15 +81,15 @@ def main(argv):
 	if len(argv) < 2:
 		raise SystemExit("Please specify the script name!")
 
-	base_dir = "" if len(argv) < 4 else argv[3]
+	base_dir = TidyDir("", guess=False) if len(argv) < 4 else TidyDir(argv[3])
 
 	scriptname = argv[1] if not argv[1].endswith(".py") else argv[1][:argv[1].rfind(".py")]
 	original_file = scriptname + ".py"
 	script_base_name = original_file[original_file.rfind("/")+1:]
-	(sub_dir, scrpt) = split_path_at_base(scriptname, base_dir)
+	(sub_dir, scrpt) = base_dir.split_path(scriptname)
 	if scriptname.rfind("/"):
 		scriptname = scriptname[scriptname.rfind("/")+1:]
-	cause_file = (current_config["default_mut_dir"]+"/").replace("//","/") + scriptname + ".log"
+	cause_file = str(TidyDir(current_config["default_mut_dir"])) + scriptname + ".log"
 	inputs_file = current_config["default_rejected"] if len(argv) < 3 else argv[2]
 	clean_invalid = eval(current_config["default_clean_invalid"]) if len(argv) < 5 else argv[4]
 	all_inputs = []
