@@ -4,7 +4,7 @@ import subprocess
 import re
 import os
 from config import get_default_config
-from craft_runnable_mutant import split_path_at_base
+from tidydir import TidyDir as TidyDir
 
 current_config = None
 
@@ -48,12 +48,12 @@ def main(argv):
 		raise SystemExit("Please specify the script name!")
 
 	scriptname = argv[1] if not argv[1].endswith(".py") else argv[1][:argv[1].rfind(".py")]
-	base_dir = "" if len(argv) < 3 else argv[2]
-	(sub_dir, script_name) = split_path_at_base(scriptname, base_dir)
+	base_dir = TidyDir("",guess=False) if len(argv) < 3 else TidyDir(argv[2])
+	(sub_dir, script_name) = base_dir.split_path(scriptname)
 	if scriptname.rfind("/") >= 0:
 		scriptname = scriptname[scriptname.rfind("/")+1:]
-	behave_file = (current_config["default_mut_dir"]+"/").replace("//","/") + scriptname + "_verified.log"
-	test_res_fl = (current_config["default_mut_dir"]+"/").replace("//","/") + scriptname + "_test_results.log"
+	behave_file = str(TidyDir(current_config["default_mut_dir"]+"/")) + scriptname + "_verified.log"
+	test_res_fl = str(TidyDir(current_config["default_mut_dir"]+"/")) + scriptname + "_test_results.log"
 	scripts_f = []
 	scripts_p = []
 	targets = []
