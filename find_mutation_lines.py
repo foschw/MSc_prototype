@@ -277,9 +277,11 @@ def main(argv):
             if original_ex_str is None:
                 original_ex_str = str(err.__class__)
 
+            # Remove lines used to construct custom exceptions
+            lines = manual_errs.remove_custom_lines(lines)
             (prim, sec) = get_left_diff(cdict, b_cdict)
-            prim = [e for e in prim if e[0] not in history]
-            sec = [e for e in sec if e[0] not in history]
+            prim = [e for e in prim if e[0] not in history and e[0] in lines]
+            sec = [e for e in sec if e[0] not in history and e[0] in lines]
             print("Used string:", repr(s))
             print("Difference to base (flipped):", prim)
             print("Difference to base (new):", sec)

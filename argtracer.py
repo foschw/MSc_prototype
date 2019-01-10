@@ -33,7 +33,7 @@ cond_flag = {}
 # The current call depth
 depth = -1
 
-# The AST that stores where exceptions are raised as well as the condition to then branch mapping-
+# The AST that stores which lines are in exception classes as well as the condition to then branch mapping
 class CondAST:
 	def __init__(self, sourcefile, deformattedfile):
 		# Get the program's AST
@@ -46,17 +46,48 @@ class CondAST:
 		self.myast = ast.parse(CondAST.expr_from_source(deformattedfile), deformattedfile)
 		ast.fix_missing_locations(self.myast)
 		# Stores for each condition line the line of its then branch
+		self.exc_class_dict = {}
 		self.cond_dict = {}
-		self.compute_lines()		
+		self.compute_lines(deformattedfile)		
 
-	# Find all conditional mappings
-	def compute_lines(self):
+	# Find all conditional mappings as well as custom exceptions
+	def compute_lines(self, mod_file):
 		for stmnt in ast.walk(self.myast):
 			if isinstance(stmnt, ast.If):
 				startline = stmnt.lineno
 				endline = stmnt.body[0].lineno
 				if not self.cond_dict.get(startline):
 					self.cond_dict[startline] = endline
+			elif isinstance(stmnt, ast.ClassDef):
+				cls_name = stmnt.name
+				cls_lns = set()
+				for nde in ast.walk(stmnt):
+					if hasattr(nde, "lineno"):
+						cls_lns.add(nde.lineno)
+				self.exc_class_dict[cls_name] = cls_lns
+		# Remove classes that are not exceptions
+		_emod = imp.load_source('myemod', mod_file)
+		rmlist = []
+		for cls_nme in self.exc_class_dict.keys():
+			try:
+				excpt = eval("_emod." + cls_nme + '("")')
+				raise excpt
+			except TypeError:
+				rmlist.append(cls_nme)
+			except:
+				pass
+		for cls_nme in rmlist:
+			lines_for_class.pop(cls_nme) 
+
+	# Removes all lines that belong to custom exceptions from the given list
+	def remove_custom_lines(self, lines):
+		for exc_nme in self.exc_class_dict.keys():
+			for lne in self.exc_class_dict[exc_nme]:
+				try:
+					lines.remove(lne)
+				except ValueError:
+					pass
+		return lines
 
 	# Checks whether a given line contains a conditional statement
 	def is_condition_line(self, lineno):
