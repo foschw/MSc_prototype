@@ -81,7 +81,7 @@ def main(argv):
 	if len(argv) < 2:
 		raise SystemExit("Please specify the script name!")
 
-	base_dir = TidyDir("", guess=False) if len(argv) < 4 else TidyDir(argv[3])
+	base_dir = TidyDir("", guess=False)
 
 	scriptname = argv[1] if not argv[1].endswith(".py") else argv[1][:argv[1].rfind(".py")]
 	original_file = scriptname + ".py"
@@ -91,7 +91,7 @@ def main(argv):
 		scriptname = scriptname[scriptname.rfind("/")+1:]
 	cause_file = str(TidyDir(current_config["default_mut_dir"])) + scriptname + ".log"
 	inputs_file = current_config["default_rejected"] if len(argv) < 3 else argv[2]
-	clean_invalid = eval(current_config["default_clean_invalid"]) if len(argv) < 5 else argv[4]
+	clean_invalid = eval(current_config["default_clean_invalid"]) if len(argv) < 4 else argv[3]
 	all_inputs = []
 	all_mutants = []
 	behave = {}
@@ -103,9 +103,6 @@ def main(argv):
 			if num > 0:
 				# Use eval to get the pair representation of the line. The first element is the mutant.
 				the_mutant = eval(line)[0]
-				# Adjust path if handling a directory
-				if base_dir:
-					the_mutant = the_mutant[:-3] + ("/" + sub_dir + "/").replace("//","/") + script_base_name
 				the_mutant = the_mutant.replace("//","/")
 				adj_dir = base_dir if base_dir else scriptname[:scriptname.rfind("/")]
 				adjust([None, the_mutant[:the_mutant.rfind("/")], adj_dir[:-1]+"_stripped/"])
@@ -142,16 +139,7 @@ def main(argv):
 			bh = behave.get(my_mutant) if behave.get(my_mutant) else []
 			bh.append("valid string rejected")
 			behave[my_mutant] = bh
-		if base_dir:
-			my_input = my_mutant[:my_mutant.rfind("/")]
-			if sub_dir:
-				if not my_input.endswith("/"):
-					my_input = my_input + "/"
-				my_input = my_input[:my_input.rfind(sub_dir)-1]
-			my_input = my_input[my_input.rfind("/")+1:]
-			my_input = my_input[:my_input.rfind("_")]
-		else:
-			my_input = my_mutant[:my_mutant.rfind("_")]
+		my_input = my_mutant[:my_mutant.rfind("_")]
 		my_input = inputs[int(my_input[my_input.rfind("_")+1:])]
 		# Check the output of the original script for the rejected string
 		exc_orig_invalid = execute_script_with_argument(original_file, my_input)

@@ -77,7 +77,7 @@ class CondAST:
 			except:
 				pass
 		for cls_nme in rmlist:
-			lines_for_class.pop(cls_nme) 
+			self.exc_class_dict.pop(cls_nme) 
 
 	# Removes all lines that belong to custom exceptions from the given list
 	def remove_custom_lines(self, lines):

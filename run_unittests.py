@@ -48,7 +48,7 @@ def main(argv):
 		raise SystemExit("Please specify the script name!")
 
 	scriptname = argv[1] if not argv[1].endswith(".py") else argv[1][:argv[1].rfind(".py")]
-	base_dir = TidyDir("",guess=False) if len(argv) < 3 else TidyDir(argv[2])
+	base_dir = TidyDir("",guess=False)
 	(sub_dir, script_name) = base_dir.split_path(scriptname)
 	if scriptname.rfind("/") >= 0:
 		scriptname = scriptname[scriptname.rfind("/")+1:]
