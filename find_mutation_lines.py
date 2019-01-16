@@ -270,12 +270,6 @@ def main(argv):
             	print("Tracer timed out on mutated string")
             	discarded.add(arg)
             	continue
-            if berr:
-                print("Mutation complete:", arg, "(base rejected)")
-                mutants_with_cause.append((arg, "valid string rejected"))
-
-            if original_ex_str is None:
-                original_ex_str = str(err.__class__)
 
             # Remove lines used to construct custom exceptions
             lines = manual_errs.remove_custom_lines(lines)
@@ -284,7 +278,14 @@ def main(argv):
                 print("Removed:", arg, "(potentially corrupted condition)")
                 discarded.add(arg)
                 continue
-                
+
+            if berr:
+                print("Mutation complete:", arg, "(base rejected)")
+                mutants_with_cause.append((arg, "valid string rejected"))
+
+            if original_ex_str is None:
+                original_ex_str = str(err.__class__)
+
             (prim, sec) = get_left_diff(cdict, b_cdict)
             prim = [e for e in prim if e[0] not in history and e[0] in lines]
             sec = [e for e in sec if e[0] not in history and e[0] in lines]

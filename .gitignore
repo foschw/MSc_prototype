@@ -1,6 +1,7 @@
 *.err
 *.log
 *.bin
+*_instr.py
 subjects/__pycache__/
 __pycache__/
 mutants/
