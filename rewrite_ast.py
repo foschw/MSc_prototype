@@ -29,7 +29,7 @@ def rewrite_in(pyfile):
 			if hasattr(rewrite, "modded"):
 				wrapper_ast = ast.fix_missing_locations(ast.parse("import taintedstr\nclass TaintWrapper(str):\n\n    def __init__(self, other):\n        if isinstance(other, TaintWrapper):\n            other = other.other\n        self.tainted = isinstance(other, taintedstr.tstr)\n        self.other = other\n\n    def in_(self, cpt):\n        if self.tainted:\n            return self.other.in_(cpt)\n        else:\n            return self.other in cpt\n"))
 				new_ast.body = wrapper_ast.body + new_ast.body
-				return astunparse.unparse(new_ast)
+			return astunparse.unparse(new_ast)
 		except Exception as e:
 			print(e)
 

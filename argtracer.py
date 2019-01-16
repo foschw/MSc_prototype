@@ -72,10 +72,10 @@ class CondAST:
 			try:
 				excpt = eval("_emod." + cls_nme + '("")')
 				raise excpt
-			except TypeError:
-				rmlist.append(cls_nme)
-			except:
-				pass
+			except Exception as ex:
+				if ex.__class__.__module__ != "myemod":
+					rmlist.append(cls_nme)
+				
 		for cls_nme in rmlist:
 			self.exc_class_dict.pop(cls_nme) 
 

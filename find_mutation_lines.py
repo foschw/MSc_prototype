@@ -279,6 +279,12 @@ def main(argv):
 
             # Remove lines used to construct custom exceptions
             lines = manual_errs.remove_custom_lines(lines)
+            # If the crash happens on a condition we modified there is a high chance it's invalid, so we remove it.
+            if lines[0] in history:
+                print("Removed:", arg, "(potentially corrupted condition)")
+                discarded.add(arg)
+                continue
+                
             (prim, sec) = get_left_diff(cdict, b_cdict)
             prim = [e for e in prim if e[0] not in history and e[0] in lines]
             sec = [e for e in sec if e[0] not in history and e[0] in lines]
