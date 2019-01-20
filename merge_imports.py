@@ -213,9 +213,6 @@ def rename_from_dict(sc_name, scr_ast, glob_name_rename):
 						trgt.id = glob_name_rename[sc_name][trgt.id]
 					else:
 						locvars[scope].add(trgt.id)
-				else:
-					pass
-					#print("HM:", trgt.__dict__)
 
 		elif isinstance(tree_node, ast.AugAssign):
 			if isinstance(tree_node.target, ast.Name):
@@ -223,11 +220,8 @@ def rename_from_dict(sc_name, scr_ast, glob_name_rename):
 					tree_node.target.id = glob_name_rename[sc_name][tree_node.target.id]
 				else:
 					locvars[scope].add(tree_node.target.id)
-			else:
-				pass
-				#print("HM:", tree_node.target.__dict__)
 
-# ClassDef, Call, Attrib, ?
+# ClassDef may need a handler?
 
 		elif isinstance(tree_node, ast.Name):
 			if scope == 0 or not in_loc_scope(tree_node.id, scope, locvars):
@@ -240,6 +234,10 @@ def rename_from_dict(sc_name, scr_ast, glob_name_rename):
 				nn.id = glob_name_rename[tree_node.value.id][tree_node.attr]
 				tree_node.value = nn
 				tree_node.attr = None
+
+		else:
+			print("Omitted:", type(tree_node))
+			print("Content:", tree_node.__dict__)
 	
 #		elif isinstance(tree_node, ast.ClassDef):
 #			if scope == 0:
