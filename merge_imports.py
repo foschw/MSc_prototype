@@ -151,7 +151,6 @@ def rewrite_imports(script, asname=None, package_dir=None, mod_cnt=0, glob_name_
 			trgt_name = node.names[0].asname
 			trgt_name = trgt_name if trgt_name is not None else node.names[0].name
 			import_mods[trgt_name] = (rewrite_imports(str(TidyDir(script))+node.names[0].name + ".py", node.names[0].asname, package_dir, mod_cnt+1, glob_name_rename, packImpHandler))
-
 	# Rename using glob_name_rename mapping
 	new_ast = ImportInlineTransformer(import_mods).visit(rename_from_dict(sc_name, scr_ast, glob_name_rename))
 
@@ -184,7 +183,13 @@ def rename_from_dict(sc_name, scr_ast, glob_name_rename):
 
 		if isinstance(tree_node, ast.FunctionDef):
 			# >= 1: Function scope available
-			if scope == 0:
+			is_class_fn = False
+			for aarg in tree_node.args.args:
+				if aarg.arg == "self":
+					is_class_fn = True
+					break
+
+			if scope == 0 and not is_class_fn:
 				tree_node.name = glob_name_rename[sc_name][tree_node.name]
 			elif scope > 1:
 				locvars[scope-1].add(tree_node.name)
@@ -221,7 +226,9 @@ def rename_from_dict(sc_name, scr_ast, glob_name_rename):
 				else:
 					locvars[scope].add(tree_node.target.id)
 
-# ClassDef may need a handler?
+		elif isinstance(tree_node, ast.ClassDef):
+			if scope == 0 and glob_name_rename[sc_name].get(tree_node.name):
+				tree_node.name = glob_name_rename[sc_name][tree_node.name]
 
 		elif isinstance(tree_node, ast.Name):
 			if scope == 0 or not in_loc_scope(tree_node.id, scope, locvars):
@@ -234,14 +241,6 @@ def rename_from_dict(sc_name, scr_ast, glob_name_rename):
 				nn.id = glob_name_rename[tree_node.value.id][tree_node.attr]
 				tree_node.value = nn
 				tree_node.attr = None
-
-		else:
-			print("Omitted:", type(tree_node))
-			print("Content:", tree_node.__dict__)
-	
-#		elif isinstance(tree_node, ast.ClassDef):
-#			if scope == 0:
-#				globnames.add(tree_node.name)
 
 	return FixAttributes().visit(scr_ast)
 
