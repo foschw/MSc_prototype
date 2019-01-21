@@ -87,13 +87,13 @@ def get_global_vars(mod_ast):
 
 	return globnames
 
-def avoid_rename_collision(sc_name, sc_var_name, glob_name_rename, cnt):
+def avoid_rename_collision(sc_path, sc_var_name, glob_name_rename, cnt):
 	prefix = "s" + str(cnt) + "_"
 	name_clean = False
 	while not name_clean:
 		name_clean = True
 		for ren_dict_name in glob_name_rename.keys():
-			if ren_dict_name == sc_name:
+			if ren_dict_name == sc_path:
 				continue
 			else:
 				for var_name in list(glob_name_rename[ren_dict_name].values()) + list(glob_name_rename[ren_dict_name].values()):
@@ -105,19 +105,18 @@ def avoid_rename_collision(sc_name, sc_var_name, glob_name_rename, cnt):
 	return prefix + sc_var_name
 
 
-def rename(sc_name, glob_name_rename, cnt):
+def rename(sc_path, glob_name_rename, cnt):
 	for ren_dict_name in glob_name_rename.keys():
-		if ren_dict_name == sc_name:
+		if ren_dict_name == sc_path:
 			continue
 		else:
 			for var_name in glob_name_rename[ren_dict_name].values():
-				if not var_name.startswith("_") and glob_name_rename[sc_name].get(var_name) == -1:
-					glob_name_rename[sc_name][var_name] = avoid_rename_collision(sc_name, var_name, glob_name_rename, cnt)
+				if not var_name.startswith("_") and glob_name_rename[sc_path].get(var_name) == -1:
+					glob_name_rename[sc_path][var_name] = avoid_rename_collision(sc_path, var_name, glob_name_rename, cnt)
 
 	return glob_name_rename
 
 def rewrite_imports(script, asname=None, package_dir=None, mod_cnt=0, glob_name_rename={}, packImpHandler=None):
-	sc_name = asname if asname is not None else script[script.rfind("/")+1:script.rfind(".py")]
 	with open(script, "r", encoding="UTF-8") as sf:
 		scr_ast = ast.fix_missing_locations(ast.parse(sf.read()))
 
@@ -135,26 +134,43 @@ def rewrite_imports(script, asname=None, package_dir=None, mod_cnt=0, glob_name_
 		# Use -1 instead of None to be able to use get()
 		name_rename[gname] = -1
 
-	glob_name_rename[sc_name] = name_rename
+	glob_name_rename[script] = name_rename
 
-	glob_name_rename = rename(sc_name, glob_name_rename, mod_cnt)
+	glob_name_rename = rename(script, glob_name_rename, mod_cnt)
 
-	for g_var in glob_name_rename[sc_name].keys():
-		if glob_name_rename[sc_name][g_var] == -1:
-			glob_name_rename[sc_name][g_var] = g_var
+	for g_var in glob_name_rename[script].keys():
+		if glob_name_rename[script][g_var] == -1:
+			glob_name_rename[script][g_var] = g_var
 
 	import_mods = {}
+	asname_name = {}
 
 	# Get renamed versions of all import targets
 	for node in getDFSOrder(scr_ast):
 		if isinstance(node, ast.Import) and packImpHandler.is_import_target(node.names[0].name, script):
-			trgt_name = node.names[0].asname
-			trgt_name = trgt_name if trgt_name is not None else node.names[0].name
+			if node.names[0].asname is not None:
+				trgt_name = node.names[0].asname
+				asname_name[trgt_name] = node.names[0].name
+			else:
+				trgt_name = node.names[0].name
+				asname_name[trgt_name] = trgt_name
+			# Works for normal imports only
 			import_mods[trgt_name] = (rewrite_imports(str(TidyDir(script))+node.names[0].name + ".py", node.names[0].asname, package_dir, mod_cnt+1, glob_name_rename, packImpHandler))
+
 	# Rename using glob_name_rename mapping
-	new_ast = ImportInlineTransformer(import_mods).visit(rename_from_dict(sc_name, scr_ast, glob_name_rename))
+	new_ast = ImportInlineTransformer(import_mods).visit(rename_from_dict(script, asname_name, scr_ast, glob_name_rename))
 
 	return get_proper_ast(new_ast)
+
+def get_path_for_name(abs_script_path, asname_name, ast_target_name):
+	# Map back all unknown imports to themselves
+	if not ast_target_name in asname_name:
+		return ast_target_name
+	# Non-relative import
+	if ast_target_name.find(".") == -1:
+		return str(TidyDir(abs_script_path)) + asname_name[ast_target_name] + ".py"
+	# Case for relative imports
+	return None
 
 def in_loc_scope(name, scope, scope_dict):
 	if scope < 1:
@@ -166,7 +182,7 @@ def in_loc_scope(name, scope, scope_dict):
 
 	return False
 
-def rename_from_dict(sc_name, scr_ast, glob_name_rename):
+def rename_from_dict(abs_script_path, asname_name, scr_ast, glob_name_rename):
 	scope = 0
 	locend = []
 	globonly = {}
@@ -190,7 +206,7 @@ def rename_from_dict(sc_name, scr_ast, glob_name_rename):
 					break
 
 			if scope == 0 and not is_class_fn:
-				tree_node.name = glob_name_rename[sc_name][tree_node.name]
+				tree_node.name = glob_name_rename[abs_script_path][tree_node.name]
 			elif scope > 1:
 				locvars[scope-1].add(tree_node.name)
 			scope += 1
@@ -215,30 +231,30 @@ def rename_from_dict(sc_name, scr_ast, glob_name_rename):
 			for trgt in tree_node.targets:
 				if isinstance(trgt, ast.Name):
 					if scope == 0 or trgt.id in globonly[scope]:
-						trgt.id = glob_name_rename[sc_name][trgt.id]
+						trgt.id = glob_name_rename[abs_script_path][trgt.id]
 					else:
 						locvars[scope].add(trgt.id)
 
 		elif isinstance(tree_node, ast.AugAssign):
 			if isinstance(tree_node.target, ast.Name):
 				if scope == 0 or tree_node.target.id in globonly[scope]:
-					tree_node.target.id = glob_name_rename[sc_name][tree_node.target.id]
+					tree_node.target.id = glob_name_rename[abs_script_path][tree_node.target.id]
 				else:
 					locvars[scope].add(tree_node.target.id)
 
 		elif isinstance(tree_node, ast.ClassDef):
-			if scope == 0 and glob_name_rename[sc_name].get(tree_node.name):
-				tree_node.name = glob_name_rename[sc_name][tree_node.name]
+			if scope == 0 and glob_name_rename[abs_script_path].get(tree_node.name):
+				tree_node.name = glob_name_rename[abs_script_path][tree_node.name]
 
 		elif isinstance(tree_node, ast.Name):
 			if scope == 0 or not in_loc_scope(tree_node.id, scope, locvars):
-				if glob_name_rename[sc_name].get(tree_node.id):
-					tree_node.id = glob_name_rename[sc_name].get(tree_node.id)
+				if glob_name_rename[abs_script_path].get(tree_node.id):
+					tree_node.id = glob_name_rename[abs_script_path].get(tree_node.id)
 
 		elif isinstance(tree_node, ast.Attribute):
-			if isinstance(tree_node.value, ast.Name) and tree_node.value.id in glob_name_rename.keys():
+			if isinstance(tree_node.value, ast.Name) and get_path_for_name(abs_script_path, asname_name, tree_node.value.id) in glob_name_rename.keys():
 				nn = ast.Name()
-				nn.id = glob_name_rename[tree_node.value.id][tree_node.attr]
+				nn.id = glob_name_rename[get_path_for_name(abs_script_path, asname_name, tree_node.value.id)][tree_node.attr]
 				tree_node.value = nn
 				tree_node.attr = None
 
