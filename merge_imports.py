@@ -5,6 +5,9 @@ import astunparse
 import glob
 from tidydir import TidyDir
 
+# Methods for handling imports across a project directory
+packImpHandler = None
+
 class ImportHandler():
 	def __init__(self, script, package_dir=None):
 		self.dirs_avail = {}
@@ -26,11 +29,33 @@ class ImportHandler():
 					if not filename.endswith("__init__.py"):
 						filename = filename[len(subdir):-3]
 						files_for_dir.append(filename)
-				self.dirs_avail[subdir] = files_for_dir
+				self.dirs_avail[str(subdir)] = files_for_dir
 
-	def is_import_target(self, other, current):
-		curr_dir = str(TidyDir(current))
-		return other in self.dirs_avail[curr_dir]		
+	def is_import_target(self, other, current, level=None):
+		imp_target = self.get_import_path(other, current, level)
+		return imp_target[imp_target.rfind("/")+1:-3] in self.dirs_avail[str(TidyDir(imp_target))]
+
+	def get_import_path(self, imp_name, curr_dir, level=None):
+		# Not an ImportFrom, sanitize dots
+		if not level:
+			level = 0 if imp_name.find(".") != -1 else 1
+			imp_target = imp_name.replace(".","/")
+			# Add back a dot to make handler below applicable
+			imp_target = "." + imp_target if level > 0 else imp_target
+				
+		# Import is relative to package_dir
+		if level == 0:
+			imp_target = imp_name.replace(".","/")
+			return str(self.package_dir) + imp_target + ".py"
+		# Import is relative to curr_dir
+		elif level == 1:
+			return str(TidyDir(curr_dir)) + imp_name[1:] + ".py"
+		# Import is relative to ..curr_dir
+		elif level == 2:
+			return str(TidyDir(os.path.abspath(curr_dir + "/../"))) + imp_name[2:] + ".py"
+		# Relative imports with 3 or more levels are rare and likely to cause issues, not handled yet.
+		else:
+			raise NotImplementedError("Relative import with three or more dots are not supported.")
 
 class DFSVisitor(ast.NodeVisitor):
 	def __init__(self):
@@ -116,13 +141,13 @@ def rename(sc_path, glob_name_rename, cnt):
 
 	return glob_name_rename
 
-def rewrite_imports(script, asname=None, package_dir=None, mod_cnt=0, glob_name_rename={}, packImpHandler=None):
+def rewrite_imports(script, package_dir=None, mod_cnt=0, glob_name_rename={}):
 	with open(script, "r", encoding="UTF-8") as sf:
 		scr_ast = ast.fix_missing_locations(ast.parse(sf.read()))
 
 	# Only one import per line
 	scr_ast = get_proper_ast(UnfoldImports().visit(scr_ast))
-
+	global packImpHandler
 	# Collect all import targets in the project directory
 	if not packImpHandler:
 		packImpHandler = ImportHandler(script, package_dir)
@@ -155,8 +180,7 @@ def rewrite_imports(script, asname=None, package_dir=None, mod_cnt=0, glob_name_
 				trgt_name = node.names[0].name
 				asname_name[trgt_name] = trgt_name
 			# Works for normal imports only
-			import_mods[trgt_name] = (rewrite_imports(str(TidyDir(script))+node.names[0].name + ".py", node.names[0].asname, package_dir, mod_cnt+1, glob_name_rename, packImpHandler))
-
+			import_mods[trgt_name] = (rewrite_imports(packImpHandler.get_import_path(node.names[0].name, script), package_dir, mod_cnt+1, glob_name_rename))
 	# Rename using glob_name_rename mapping
 	new_ast = ImportInlineTransformer(import_mods).visit(rename_from_dict(script, asname_name, scr_ast, glob_name_rename))
 
@@ -166,11 +190,10 @@ def get_path_for_name(abs_script_path, asname_name, ast_target_name):
 	# Map back all unknown imports to themselves
 	if not ast_target_name in asname_name:
 		return ast_target_name
+	# Let the import handler do the mapping
+	global packImpHandler
 	# Non-relative import
-	if ast_target_name.find(".") == -1:
-		return str(TidyDir(abs_script_path)) + asname_name[ast_target_name] + ".py"
-	# Case for relative imports
-	return None
+	return packImpHandler.get_import_path(asname_name[ast_target_name], abs_script_path)
 
 def in_loc_scope(name, scope, scope_dict):
 	if scope < 1:
