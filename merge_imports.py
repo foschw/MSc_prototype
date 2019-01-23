@@ -11,16 +11,15 @@ packImpHandler = None
 class ImportHandler():
 	def __init__(self, script, package_dir=None):
 		self.dirs_avail = {}
-		self.script = script
 		self.package_dir = package_dir
-		self.compute_py_targets()
+		self.compute_py_targets(script)
 
-	def compute_py_targets(self):
-		if not self.script.endswith(".py"):
-			self.script = script + ".py"
-		self.script = os.path.abspath(self.script).replace("\\","/")
+	def compute_py_targets(self, script):
+		if not script.endswith(".py"):
+			script = script + ".py"
+		script = os.path.abspath(script).replace("\\","/")
 		if not self.package_dir:
-			self.package_dir = TidyDir(self.script)
+			self.package_dir = TidyDir(script)
 		for subdir in self.package_dir.get_subdirs():
 			if os.path.exists(str(subdir) + "__init__.py") or str(subdir) == str(self.package_dir):
 				files_for_dir = []
@@ -53,7 +52,7 @@ class ImportHandler():
 		# Import is relative to ..curr_dir
 		elif level == 2:
 			return str(TidyDir(os.path.abspath(curr_dir + "/../"))) + imp_name[2:] + ".py"
-		# Relative imports with 3 or more levels are rare and likely to cause issues, not handled yet.
+		# Relative imports with 3 or more levels are rare and likely to cause issues, not handled.
 		else:
 			raise NotImplementedError("Relative import with three or more dots are not supported.")
 
@@ -145,12 +144,9 @@ def rewrite_imports(script, package_dir=None, mod_cnt=0, glob_name_rename={}):
 	with open(script, "r", encoding="UTF-8") as sf:
 		scr_ast = ast.fix_missing_locations(ast.parse(sf.read()))
 
-	# Only one import per line
+	# Transforms imports to be organized properly. Relative imports are turned absolute, ImportFrom is split in package and py-files, packages are split into multiple single py imports.
 	scr_ast = get_proper_ast(UnfoldImports().visit(scr_ast))
 	global packImpHandler
-	# Collect all import targets in the project directory
-	if not packImpHandler:
-		packImpHandler = ImportHandler(script, package_dir)
 
 	# Initialize renaming rules
 	name_rename = {}
@@ -317,6 +313,9 @@ class UnfoldImports(ast.NodeTransformer):
 
 def main(script, package_dir=None):
 	script = os.path.abspath(script).replace("\\","/")
+
+	global packImpHandler
+	packImpHandler = ImportHandler(script, package_dir)
 
 	return astunparse.unparse(rewrite_imports(script))
 
