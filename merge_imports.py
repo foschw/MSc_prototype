@@ -12,9 +12,9 @@ class ImportHandler():
 	def __init__(self, script, package_dir=None):
 		self.dirs_avail = {}
 		self.package_dir = package_dir
-		self.compute_py_targets(script)
+		self.compute_targets(script)
 
-	def compute_py_targets(self, script):
+	def compute_targets(self, script):
 		if not script.endswith(".py"):
 			script = script + ".py"
 		script = os.path.abspath(script).replace("\\","/")
@@ -23,38 +23,53 @@ class ImportHandler():
 		for subdir in self.package_dir.get_subdirs():
 			if os.path.exists(str(subdir) + "__init__.py") or str(subdir) == str(self.package_dir):
 				files_for_dir = []
-				for filename in glob.iglob(str(subdir) + "*.py"):
+				for filename in glob.iglob(str(subdir) + "*"):
 					filename = filename.replace("\\", "/")
-					if not filename.endswith("__init__.py"):
-						filename = filename[len(subdir):-3]
+					if (filename.endswith(".py") and not filename.endswith("__init__.py")) or (os.path.isdir(filename) and os.path.exists(filename + "/__init__.py")):
+						if os.path.isdir(filename):
+							filename = filename + "/"
+						filename = filename[len(subdir):]
 						files_for_dir.append(filename)
 				self.dirs_avail[str(subdir)] = files_for_dir
 
-	def is_import_target(self, other, current, level=None):
-		imp_target = self.get_import_path(other, current, level)
-		return imp_target[imp_target.rfind("/")+1:-3] in self.dirs_avail[str(TidyDir(imp_target))]
+	# Only usable for .py files
+	def is_import_target(self, other, current, level=0):
+		imp_target = self.get_import_path(other, current, level) + ".py"
+		return imp_target[imp_target.rfind("/")+1:] in self.dirs_avail[str(TidyDir(imp_target))]
 
-	def get_import_path(self, imp_name, curr_dir, level=None):
+	def is_composite(self, short_path, parent, level=0):
+		full_path = str(TidyDir(self.get_import_path(short_path, parent, level) + "/", guess=False))
+		return full_path in self.dirs_avail.keys()
+
+	def get_import_path(self, imp_name, curr_dir, level=0):
 		# Not an ImportFrom, sanitize dots
-		if not level:
-			level = 0 if imp_name.find(".") != -1 else 1
-			imp_target = imp_name.replace(".","/")
-			# Add back a dot to make handler below applicable
-			imp_target = "." + imp_target if level > 0 else imp_target
-				
+		imp_target = imp_name.replace(".","/")
 		# Import is relative to package_dir
 		if level == 0:
-			imp_target = imp_name.replace(".","/")
-			return str(self.package_dir) + imp_target + ".py"
+			return str(self.package_dir) + imp_target
 		# Import is relative to curr_dir
 		elif level == 1:
-			return str(TidyDir(curr_dir)) + imp_name[1:] + ".py"
+			return str(TidyDir(curr_dir)) + imp_name
 		# Import is relative to ..curr_dir
 		elif level == 2:
-			return str(TidyDir(os.path.abspath(curr_dir + "/../"))) + imp_name[2:] + ".py"
+			return str(TidyDir(os.path.abspath(curr_dir + "/../"))) + imp_name
 		# Relative imports with 3 or more levels are rare and likely to cause issues, not handled.
 		else:
 			raise NotImplementedError("Relative import with three or more dots are not supported.")
+
+	def abs_path_to_impname(self, abs_path):
+		abs_path = str(TidyDir(abs_path+"/"))
+		other = str(self.package_dir)
+		pf = ""
+		for i in range(min(len(abs_path),len(other))):
+			if abs_path[i] == other[i]:
+				pf = pf + other[i]
+			else:
+				break
+		if not pf.endswith("/"):
+			pf = pf[:pf.rfind("/")]
+		return abs_path[len(pf):-1].replace("/",".")
+
 
 class DFSVisitor(ast.NodeVisitor):
 	def __init__(self):
@@ -145,8 +160,8 @@ def rewrite_imports(script, package_dir=None, mod_cnt=0, glob_name_rename={}):
 		scr_ast = ast.fix_missing_locations(ast.parse(sf.read()))
 
 	# Transforms imports to be organized properly. Relative imports are turned absolute, ImportFrom is split in package and py-files, packages are split into multiple single py imports.
-	scr_ast = get_proper_ast(UnfoldImports().visit(scr_ast))
-	global packImpHandler
+	preproc = PreprocessImports(script)
+	scr_ast = get_proper_ast(preproc.visit(scr_ast))
 
 	# Initialize renaming rules
 	name_rename = {}
@@ -164,19 +179,23 @@ def rewrite_imports(script, package_dir=None, mod_cnt=0, glob_name_rename={}):
 			glob_name_rename[script][g_var] = g_var
 
 	import_mods = {}
-	asname_name = {}
+	asname_name = preproc.asname_name
 
 	# Get renamed versions of all import targets
 	for node in getDFSOrder(scr_ast):
+		if isinstance(node, ast.Import):
+			print("Trying to inline:", astunparse.unparse(node))
 		if isinstance(node, ast.Import) and packImpHandler.is_import_target(node.names[0].name, script):
 			if node.names[0].asname is not None:
 				trgt_name = node.names[0].asname
 				asname_name[trgt_name] = node.names[0].name
 			else:
 				trgt_name = node.names[0].name
-				asname_name[trgt_name] = trgt_name
+				if asname_name.get(trgt_name) is None:
+					asname_name[trgt_name] = trgt_name
+
 			# Works for normal imports only
-			import_mods[trgt_name] = (rewrite_imports(packImpHandler.get_import_path(node.names[0].name, script), package_dir, mod_cnt+1, glob_name_rename))
+			import_mods[trgt_name] = (rewrite_imports(packImpHandler.get_import_path(node.names[0].name, script) + ".py", package_dir, mod_cnt+1, glob_name_rename))
 	# Rename using glob_name_rename mapping
 	new_ast = ImportInlineTransformer(import_mods).visit(rename_from_dict(script, asname_name, scr_ast, glob_name_rename))
 
@@ -187,8 +206,6 @@ def get_path_for_name(abs_script_path, asname_name, ast_target_name):
 	if not ast_target_name in asname_name:
 		return ast_target_name
 	# Let the import handler do the mapping
-	global packImpHandler
-	# Non-relative import
 	return packImpHandler.get_import_path(asname_name[ast_target_name], abs_script_path)
 
 def in_loc_scope(name, scope, scope_dict):
@@ -301,15 +318,92 @@ class FixAttributes(ast.NodeTransformer):
 
 		return self.generic_visit(tree_node)
 
-class UnfoldImports(ast.NodeTransformer):
+class PreprocessImports(ast.NodeTransformer):
+	def __init__(self, invoking_script, asname_name={}):
+		super().__init__()
+		self.invoking_script = invoking_script
+		self.asname_name = asname_name
+
+	def flatten_imports(self, module_name, import_alias, source_script, level, name_ref=None, init_pre=None):
+		flattened = []
+		full_path = module_name + "." + import_alias.name if module_name else import_alias.name
+		ilvl = level if level is not None else 0
+		if not packImpHandler.is_composite(full_path, source_script, ilvl):
+			# ast.ImportFrom
+			if level is not None:
+				flat_nd = ast.ImportFrom()
+				flat_nd.module = module_name
+				flat_nd.level = level
+
+			# ast.Import
+			else:
+				flat_nd = ast.Import()
+
+			if name_ref is not None:
+				# Fix asname_name mapping
+				name_prefix = packImpHandler.abs_path_to_impname(str(TidyDir(packImpHandler.get_import_path(full_path, source_script,ilvl)+"/", guess=False)))
+				self.asname_name[name_ref + "." + import_alias.name[len(init_pre)+1:]] = import_alias.name
+	
+			flat_nd.names = [import_alias]
+			flattened.append(flat_nd)
+
+		else:
+			# Turn everything into ast.Import elements and fix the internal mapping
+			my_path = str(TidyDir(packImpHandler.get_import_path(full_path, source_script,ilvl)+"/", guess=False))
+			name_prefix = packImpHandler.abs_path_to_impname(my_path)
+			# Save the initial referencing name
+			if name_ref is None:
+				name_ref = import_alias.asname if import_alias.asname else import_alias.name
+			if init_pre is None:
+				init_pre = name_prefix
+			for imp_target in packImpHandler.dirs_avail[my_path]:
+				imp_target = imp_target[:-1] if imp_target.endswith("/") else imp_target[:-3]
+				new_alias = ast.alias()
+				new_alias.name = name_prefix + "." + imp_target
+				new_alias.asname = None
+				flattened = flattened + self.flatten_imports("", new_alias, source_script, None, name_ref, init_pre)
+
+		return flattened
+
 	def visit_Import(self, tree_node):
 		mod = ast.Module()
 		mod.body = []
 		for trgt in tree_node.names:
-			imp_nd = ast.Import()
-			imp_nd.names = [trgt]
-			mod.body.append(imp_nd)
+			mod.body = mod.body + self.flatten_imports("", trgt, self.invoking_script, None)
 		return mod
+
+	def visit_ImportFrom(self, tree_node):
+		# Check whether the origin is a py-file or composite
+		tnm = "" if not tree_node.module else tree_node.module
+		if packImpHandler.is_composite(tnm, self.invoking_script, tree_node.level):
+			if tree_node.names[0].name != "*":
+				# Turn the list into atomic ImportFrom elements
+				new_mod = ast.Module()
+				new_mod.body = []
+				for imp_nd_tgt in tree_node.names:
+					new_mod.body = new_mod.body + self.flatten_imports(tnm, imp_nd_tgt, self.invoking_script, tree_node.level)
+				return new_mod
+			# Handle * here to not clutter flatten_imports
+			else:
+				new_mod = ast.Module()
+				new_mod.body = []
+				for target_py in packImpHandler.dirs_avail[str(TidyDir(packImpHandler.get_import_path(tnm, self.invoking_script,tree_node.level)+"/", guess=False))]:
+					# Go back to python naming
+					target_py = target_py[:-3] if target_py.endswith(".py") else target_py[:-1]
+					# Don't import yourself
+					rel_target = tree_node.module + "." + target_py if tree_node.module else target_py
+					if packImpHandler.get_import_path(rel_target, self.invoking_script,tree_node.level) + ".py" == self.invoking_script:
+						continue
+					target_alias = ast.alias()
+					target_alias.name = target_py
+					target_alias.asname = None
+					new_mod.body = new_mod.body + self.flatten_imports(tnm, target_alias, str(TidyDir(packImpHandler.get_import_path(tnm, self.invoking_script,tree_node.level)+"/", guess=False)), tree_node.level)
+
+				return new_mod
+
+		else:
+			# Don't change anything (no separation!), mapping the names later if necessary is enough
+			return tree_node
 
 def main(script, package_dir=None):
 	script = os.path.abspath(script).replace("\\","/")
