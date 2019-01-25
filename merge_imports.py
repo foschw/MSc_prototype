@@ -49,7 +49,7 @@ class ImportHandler():
 			return str(self.package_dir) + imp_target
 		# Import is relative to curr_dir
 		elif level == 1:
-			return str(TidyDir(curr_dir)) + imp_name
+			return str(TidyDir(curr_dir)) + imp_target
 		# Import is relative to ..curr_dir
 		elif level == 2:
 			return str(TidyDir(os.path.abspath(curr_dir + "/../"))) + imp_name
@@ -155,7 +155,7 @@ def rename(sc_path, glob_name_rename, cnt):
 
 	return glob_name_rename
 
-def rewrite_imports(script, package_dir=None, mod_cnt=0, glob_name_rename={}):
+def rewrite_imports(script, mod_cnt=0, glob_name_rename={}):
 	with open(script, "r", encoding="UTF-8") as sf:
 		scr_ast = ast.fix_missing_locations(ast.parse(sf.read()))
 
@@ -193,7 +193,24 @@ def rewrite_imports(script, package_dir=None, mod_cnt=0, glob_name_rename={}):
 					asname_name[trgt_name] = trgt_name
 
 			# Works for normal imports only
-			import_mods[trgt_name] = (rewrite_imports(packImpHandler.get_import_path(node.names[0].name, script) + ".py", package_dir, mod_cnt+1, glob_name_rename))
+			import_mods[trgt_name] = (rewrite_imports(packImpHandler.get_import_path(node.names[0].name, script) + ".py", mod_cnt+1, glob_name_rename))
+		elif isinstance(node, ast.ImportFrom):
+			mod_nm = node.module if node.module else ""
+			full_path = node.module + "." + node.names[0].name if node.module else node.names[0].name
+			# * imports are not possible here due to preprocessing
+			try:
+				ec = packImpHandler.is_import_target(full_path, script, node.level)
+			except:
+				ec = None
+			ecc = packImpHandler.is_import_target(mod_nm, script, node.level)
+			if ec is not None or ecc:
+				if ec:
+					print("Eat script with dot:", repr(astunparse.unparse(node)))
+				elif node.names[0].name == "*":
+					print("All of it:", repr(astunparse.unparse(node)))
+				else:
+					print("Var_names:", repr(astunparse.unparse(node)))
+
 	# Rename using glob_name_rename mapping
 	new_ast = ImportInlineTransformer(import_mods).visit(rename_from_dict(script, asname_name, scr_ast, glob_name_rename))
 
@@ -352,7 +369,7 @@ class PreprocessImports(ast.NodeTransformer):
 			# Turn everything into ast.Import elements and fix the internal mapping
 			my_path = str(TidyDir(packImpHandler.get_import_path(full_path, source_script,ilvl)+"/", guess=False))
 			name_prefix = packImpHandler.abs_path_to_impname(my_path)
-			# Save the initial referencing name
+			# Save the initial referencing name and what part of the name needs to be cut off for the mapping
 			if name_ref is None:
 				name_ref = import_alias.asname if import_alias.asname else import_alias.name
 			if init_pre is None:
