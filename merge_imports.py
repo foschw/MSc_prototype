@@ -183,8 +183,6 @@ def rewrite_imports(script, package_dir=None, mod_cnt=0, glob_name_rename={}):
 
 	# Get renamed versions of all import targets
 	for node in getDFSOrder(scr_ast):
-		if isinstance(node, ast.Import):
-			print("Trying to inline:", astunparse.unparse(node))
 		if isinstance(node, ast.Import) and packImpHandler.is_import_target(node.names[0].name, script):
 			if node.names[0].asname is not None:
 				trgt_name = node.names[0].asname
@@ -288,9 +286,12 @@ def rename_from_dict(abs_script_path, asname_name, scr_ast, glob_name_rename):
 					tree_node.id = glob_name_rename[abs_script_path].get(tree_node.id)
 
 		elif isinstance(tree_node, ast.Attribute):
-			if isinstance(tree_node.value, ast.Name) and get_path_for_name(abs_script_path, asname_name, tree_node.value.id) in glob_name_rename.keys():
+			srcctx = astunparse.unparse(tree_node.value)
+			srcctx = srcctx if not srcctx.endswith("\n") else srcctx[:-1]
+			tpath = get_path_for_name(abs_script_path, asname_name, srcctx) + ".py"
+			if tpath in glob_name_rename.keys():
 				nn = ast.Name()
-				nn.id = glob_name_rename[get_path_for_name(abs_script_path, asname_name, tree_node.value.id)][tree_node.attr]
+				nn.id = glob_name_rename[tpath][tree_node.attr]
 				tree_node.value = nn
 				tree_node.attr = None
 
