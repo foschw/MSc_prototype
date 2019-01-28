@@ -193,7 +193,8 @@ def rewrite_imports(script, mod_cnt=0, glob_name_rename={}):
 					asname_name[trgt_name] = trgt_name
 
 			# Works for normal imports only
-			import_mods[trgt_name] = (rewrite_imports(packImpHandler.get_import_path(node.names[0].name, script) + ".py", mod_cnt+1, glob_name_rename))
+			mod_cnt += 1
+			import_mods[trgt_name] = rewrite_imports(packImpHandler.get_import_path(node.names[0].name, script) + ".py", mod_cnt, glob_name_rename)
 		elif isinstance(node, ast.ImportFrom):
 			mod_nm = node.module if node.module else ""
 			full_path = node.module + "." + node.names[0].name if node.module else node.names[0].name
@@ -204,12 +205,27 @@ def rewrite_imports(script, mod_cnt=0, glob_name_rename={}):
 				ec = None
 			ecc = packImpHandler.is_import_target(mod_nm, script, node.level)
 			if ec is not None or ecc:
+				mod_cnt += 1
 				if ec:
-					print("Eat script with dot:", repr(astunparse.unparse(node)))
+					imported_script = packImpHandler.get_import_path(full_path, script, node.level) + ".py"
+					if node.names[0].asname:
+						asname_name[node.names[0].asname] = node.names[0].name
+					import_mods[node] = rewrite_imports(imported_script, mod_cnt, glob_name_rename)
 				elif node.names[0].name == "*":
-					print("All of it:", repr(astunparse.unparse(node)))
+					# Only names from the module (due to preprocessing)
+					imported_script = packImpHandler.get_import_path(mod_nm, script, node.level) + ".py"
+					import_mods[node] = rewrite_imports(imported_script, mod_cnt, glob_name_rename)
+					# Get name mappings from the imported script
+					for gnr in glob_name_rename[imported_script].keys():
+						glob_name_rename[script][gnr] = glob_name_rename[imported_script][gnr]
 				else:
-					print("Var_names:", repr(astunparse.unparse(node)))
+					imported_script = packImpHandler.get_import_path(mod_nm, script, node.level) + ".py"
+					import_mods[node] = rewrite_imports(imported_script, mod_cnt, glob_name_rename)
+					for some_alias in node.names:
+						if some_alias.asname and not asname_name.get(some_alias.asname):
+							asname_name[some_alias.asname] = some_alias.name
+						glob_name_rename[script][some_alias.name] = glob_name_rename[imported_script][some_alias.name]
+
 
 	# Rename using glob_name_rename mapping
 	new_ast = ImportInlineTransformer(import_mods).visit(rename_from_dict(script, asname_name, scr_ast, glob_name_rename))
@@ -323,6 +339,13 @@ class ImportInlineTransformer(ast.NodeTransformer):
 		tname = tree_node.names[0].asname
 		tname = tname if tname else tree_node.names[0].name
 		impmod = self.import_dict.get(tname)
+		if impmod:
+			return impmod
+		else:
+			return tree_node
+
+	def visit_ImportFrom(self, tree_node):
+		impmod = self.import_dict.get(tree_node)
 		if impmod:
 			return impmod
 		else:
