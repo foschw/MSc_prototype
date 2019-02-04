@@ -7,7 +7,6 @@ import os
 from config import get_default_config
 from tidydir import TidyDir as TidyDir
 import shutil
-from adjust_imports import main as adjust
 
 current_config = None
 
@@ -105,7 +104,6 @@ def main(argv):
 				the_mutant = eval(line)[0]
 				the_mutant = the_mutant.replace("//","/")
 				adj_dir = base_dir if base_dir else scriptname[:scriptname.rfind("/")]
-				adjust([None, the_mutant[:the_mutant.rfind("/")], adj_dir[:-1]+"_stripped/"])
 				effect_set = mutant_to_cause.get(the_mutant) if mutant_to_cause.get(the_mutant) else set()
 				# Code mutant behaviour as integer for easy comparison
 				if eval(line)[1].find("rejected") > -1:

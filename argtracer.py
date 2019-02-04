@@ -32,6 +32,8 @@ base_ast = None
 cond_flag = {}
 # The current call depth
 depth = -1
+# Logging variable assignments
+should_log_vass = False
 
 # The AST that stores which lines are in exception classes as well as the condition to then branch mapping
 class CondAST:
@@ -167,9 +169,12 @@ def line_tracer(frame, event, arg):
 				cond_flag.pop(depth)
 			# Record the current line
 			lines.insert(0, frame.f_lineno)
-			# Record all variable assignments for condition lines
+			# Record all variable assignments for condition lines if requested
 			if base_ast.is_condition_line(frame.f_lineno): 
 				cond_flag[depth] = frame.f_lineno
+				if not should_log_vass:
+					return line_tracer
+
 				global vrs
 				vass = vrs.get(frame.f_lineno) if vrs.get(frame.f_lineno) else []
 				# Only consider always initialized variables

@@ -14,8 +14,300 @@ from timeit import default_timer as timer
 from config import get_default_config
 import ast
 import astunparse
+from math import floor
 
 current_config = None
+
+# Default mutation: replace ast elements with syntactically valid alternatives
+
+class MutTransformer(ast.NodeTransformer):
+    def __init__(self, trgt_code):
+        super().__init__()
+        self.target = trgt_code
+        self.idx = 0
+
+    # Binary Operators
+    def visit_Add(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            ops = [ast.Sub, ast.Mult, ast.Div, ast.Mod, ast.Pow, ast.LShift, ast.RShift, ast.BitOr, ast.BitXor, ast.BitAnd, ast.FloorDiv]
+            return self.generic_visit(random.choice(ops)())
+
+        return self.generic_visit(tree_node)
+
+    def visit_Sub(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            ops = [ast.Add, ast.Mult, ast.Div, ast.Mod, ast.Pow, ast.LShift, ast.RShift, ast.BitOr, ast.BitXor, ast.BitAnd, ast.FloorDiv]
+            return self.generic_visit(random.choice(ops)())
+
+        return self.generic_visit(tree_node)
+
+    def visit_Mult(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            ops = [ast.Add, ast.Sub, ast.Div, ast.Mod, ast.Pow, ast.LShift, ast.RShift, ast.BitOr, ast.BitXor, ast.BitAnd, ast.FloorDiv]
+            return self.generic_visit(random.choice(ops)())
+
+        return self.generic_visit(tree_node)
+
+    def visit_Div(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            ops = [ast.Add, ast.Sub, ast.Mult, ast.Mod, ast.Pow, ast.LShift, ast.RShift, ast.BitOr, ast.BitXor, ast.BitAnd, ast.FloorDiv]
+            return self.generic_visit(random.choice(ops)())
+
+        return self.generic_visit(tree_node)
+
+    def visit_Mod(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            ops = [ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow, ast.LShift, ast.RShift, ast.BitOr, ast.BitXor, ast.BitAnd, ast.FloorDiv]
+            return self.generic_visit(random.choice(ops)())
+
+        return self.generic_visit(tree_node)
+
+    def visit_Pow(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            ops = [ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Mod, ast.LShift, ast.RShift, ast.BitOr, ast.BitXor, ast.BitAnd, ast.FloorDiv]
+            return self.generic_visit(random.choice(ops)())
+
+        return self.generic_visit(tree_node)
+
+    def visit_LShift(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            ops = [ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Mod, ast.Pow, ast.RShift, ast.BitOr, ast.BitXor, ast.BitAnd, ast.FloorDiv]
+            return self.generic_visit(random.choice(ops)())
+
+        return self.generic_visit(tree_node)
+
+    def visit_RShift(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            ops = [ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Mod, ast.Pow, ast.LShift, ast.BitOr, ast.BitXor, ast.BitAnd, ast.FloorDiv]
+            return self.generic_visit(random.choice(ops)())
+
+        return self.generic_visit(tree_node)
+
+    def visit_BitOr(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            ops = [ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Mod, ast.Pow, ast.LShift, ast.RShift, ast.BitXor, ast.BitAnd, ast.FloorDiv]
+            return self.generic_visit(random.choice(ops)())
+
+        return self.generic_visit(tree_node)
+
+    def visit_BitXor(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            ops = [ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Mod, ast.Pow, ast.LShift, ast.RShift, ast.BitOr, ast.BitAnd, ast.FloorDiv]
+            return self.generic_visit(random.choice(ops)())
+
+        return self.generic_visit(tree_node)
+
+    def visit_BitAnd(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            ops = [ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Mod, ast.Pow, ast.LShift, ast.RShift, ast.BitOr, ast.BitXor, ast.FloorDiv]
+            return self.generic_visit(random.choice(ops)())
+
+        return self.generic_visit(tree_node)
+
+    def visit_FloorDiv(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            ops = [ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Mod, ast.Pow, ast.LShift, ast.RShift, ast.BitOr, ast.BitXor, ast.BitAnd]
+            return self.generic_visit(random.choice(ops)())
+
+        return self.generic_visit(tree_node)
+
+    # Constants
+    def visit_Num(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            rn = tree_node.n
+            while rn == tree_node.n:
+                rn = random.randint(-10,10)
+            tree_node.n = rn
+
+        return self.generic_visit(tree_node)
+
+    # Boolean Operators
+    def visit_And(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            return self.generic_visit(ast.Or())
+
+        return self.generic_visit(tree_node)
+
+    def visit_Or(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            return self.generic_visit(ast.And())
+
+        return self.generic_visit(tree_node)
+
+    # Comparisons
+    def visit_Eq(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            return self.generic_visit(random.choice([ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn])())
+
+        return self.generic_visit(tree_node)
+
+    def visit_NotEq(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            return self.generic_visit(random.choice([ast.Eq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn])())
+
+        return self.generic_visit(tree_node)
+
+    def visit_Lt(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            return self.generic_visit(random.choice([ast.Eq, ast.NotEq, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn])())
+
+        return self.generic_visit(tree_node)
+
+    def visit_LtE(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            return self.generic_visit(random.choice([ast.Eq, ast.NotEq, ast.Lt, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn])())
+
+        return self.generic_visit(tree_node)
+
+    def visit_Gt(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            return self.generic_visit(random.choice([ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn])())
+
+        return self.generic_visit(tree_node)
+
+    def visit_GtE(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            return self.generic_visit(random.choice([ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.Is, ast.IsNot, ast.In, ast.NotIn])())
+
+        return self.generic_visit(tree_node)
+
+    def visit_Is(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            return self.generic_visit(random.choice([ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.IsNot, ast.In, ast.NotIn])())
+
+        return self.generic_visit(tree_node)
+
+    def visit_IsNot(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            return self.generic_visit(random.choice([ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.In, ast.NotIn])())
+
+        return self.generic_visit(tree_node)
+
+    def visit_In(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            return self.generic_visit(random.choice([ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.NotIn])())
+
+        return self.generic_visit(tree_node)
+
+    def visit_NotIn(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            return self.generic_visit(random.choice([ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In])())
+
+        return self.generic_visit(tree_node)
+
+    # Unary Operators excluding not
+    def visit_Invert(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            return self.generic_visit(random.choice([ast.UAdd,ast.USub])())
+
+        return self.generic_visit(tree_node)
+
+    def visit_UAdd(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            return self.generic_visit(random.choice([ast.Invert,ast.USub])())
+
+        return self.generic_visit(tree_node)
+
+    def visit_USub(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            return self.generic_visit(random.choice([ast.Invert,ast.UAdd])())
+
+        return self.generic_visit(tree_node)
+
+    # Slice operators
+    def visit_Slice(self, tree_node):
+        self.idx += 1
+        if self.target[self.idx-1] == "1":
+            tree_node.lower = None
+            tree_node.upper = None
+            tree_node.step = None
+
+        return self.generic_visit(tree_node)
+
+# Counts how many mutation combinations are possible
+class MutVisit(ast.NodeVisitor):
+    def __init__(self):
+        super().__init__()
+        self.mod_cnt = 0
+
+    # Arithmetic Operator
+    def visit_BinOp(self, tree_node):
+        self.mod_cnt += 1
+        self.generic_visit(tree_node)
+
+    # Constant
+    def visit_Num(self, tree_node):
+        self.mod_cnt += 1
+        self.generic_visit(tree_node)
+
+    # Logical (Boolean) Operator (and/or)
+    def visit_BoolOp(self, tree_node):
+        self.mod_cnt += 1
+        self.generic_visit(tree_node)
+
+    # Logical Operator (Compare)
+    def visit_Compare(self, tree_node):
+        self.mod_cnt += 1
+        self.generic_visit(tree_node)
+
+    # Unary Operator
+    def visit_UnaryOp(self, tree_node):
+        # Not is handled in a different way
+        if not isinstance(tree_node.op, ast.Not):
+            self.mod_cnt += 1
+        self.generic_visit(tree_node)
+
+    # Slice
+    def visit_Slice(self, tree_node):
+        self.mod_cnt += 1
+        self.generic_visit(tree_node)
+
+# Implements default mutation - replaces ast elements with syntactically correct alternatives
+def mutate_default(inpt):
+    inpt_ast = ast.fix_missing_locations(ast.parse(inpt))
+    mvisit = MutVisit()
+    mvisit.visit(inpt_ast)
+    ran = 2**mvisit.mod_cnt
+    reslst = []
+    # Controls which percentage of operators in the condition may be mutated
+    mlimit = max(floor(float(current_config["cond_mut_limit"]) * mvisit.mod_cnt), 1)
+    for i in range(1, ran):
+        bin_num = format(i, "b").zfill(mvisit.mod_cnt)
+        if bin_num.count("1") > mlimit:
+            continue
+        inpt_ast = ast.fix_missing_locations(ast.parse(inpt))
+        mtrans = MutTransformer(bin_num)
+        res = mtrans.visit(inpt_ast)
+        reslst.append(astunparse.unparse(res).lstrip().rstrip())
+    return reslst
 
 # Computes the "left difference" of two sets.
 # This returns two sets: 
@@ -44,13 +336,10 @@ def sanitize(valuestring):
 
 # Creates all possible conditions that may adjust the path of the mutated string to be like the original string
 # Parameters:
-# old_cond: The pair (old condition line number, truth value)
+# old_cond: The old condition's line number
 # file: The current mutants file path
-# b_varsat: The variable assignments of the original string (base string)
-# varsat: The variable assignments encountered for the mutated string
-def make_new_conditions(old_cond, file, b_varsat, varsat):
+def make_new_conditions(lineno, file):
     global manual_errs
-    (lineno, state) = old_cond
     possible_conditions = []
     # Get the full condition string
     full_str = manual_errs.get_if_from_line(lineno, file)
@@ -59,33 +348,10 @@ def make_new_conditions(old_cond, file, b_varsat, varsat):
         possible_conditions.append(part_inv)
     # Reduce the string to only the condition, i.e. "if True:" becomes "True"
     cond_str = full_str[full_str.find("if")+3:full_str.rfind(":")]
-    # Conditions that hold for the last execution of the line and not for the baseline run
-    lcand = varsat.get(lineno) if varsat.get(lineno) else None
-    if lcand:
-        rcand = b_varsat[lineno] if b_varsat.get(lineno) else []
-    else: return []
-
-    choices = [i for i in lcand if i not in rcand]
-    print("Possible choices:", choices)
-    if not choices:
-        return []
-
-    # Generate all conditions that may flip the truth value
-    for valid_cond in choices:
-        if state:
-            # Falsify the condition
-            valid_cond = valid_cond[0] + " != " + sanitize(valid_cond[1])
-            new_cond = "(" + cond_str.lstrip() + ") and " + valid_cond
-        else:
-            # Satisfy the condition
-            valid_cond = valid_cond[0] + " == " + sanitize(valid_cond[1])
-            new_cond = "(" + cond_str.lstrip() + ") or " + valid_cond
-        
+    # Get default mutations
+    for new_cond in mutate_default(cond_str):
         nc1 = full_str[:full_str.find("if")+2] + " " + new_cond + ":"
-        # This was initially planned, but has been removed as it creates very bad mutants
-        #nc2 = full_str[:full_str.find("if")+2] + " " + valid_cond + ":"
         possible_conditions.append(str(nc1))
-        #possible_conditions.append(str(nc2))
 
     return possible_conditions
 
@@ -134,19 +400,19 @@ def get_partial_inversions(condition_str):
     return res
 
 # Generate all possible new conditions from a delta (pair of primary and secondary condition differences).
-def get_possible_fixes(delta, file, b_varsat, varsat):
+def get_possible_fixes(delta, file):
     (prim, sec) = delta
     fixmap = []
     # In case there are primary candidates generate a mutant for all of them.
     if prim:
         for (lineno, state) in prim:
-        	fix_list = make_new_conditions((lineno,state),file,b_varsat,varsat)
+        	fix_list = make_new_conditions(lineno,file)
         	if fix_list:
         	    fixmap.append((fix_list, lineno))
     # Otherwise test all remaining candidates
     elif sec:
         for (lineno, state) in sec:
-        	fix_list = make_new_conditions((lineno,state),file,b_varsat,varsat)
+        	fix_list = make_new_conditions(lineno,file)
         	if fix_list:
         	    fixmap.append((fix_list, lineno))
     # Returns a list of ([possible fixes for a line], line number)
@@ -265,7 +531,7 @@ def main(argv):
             # Mutation guided by rejected strings
 
             try:
-                (lines, cdict, vrs, err) = argtracer.trace(arg, s, timeout=timeout)
+                (lines, cdict, _, err) = argtracer.trace(arg, s, timeout=timeout)
             except:
             	print("Tracer timed out on mutated string")
             	discarded.add(arg)
@@ -304,7 +570,7 @@ def main(argv):
                 if not berr:
                     # In case the base string is not rejected we discard the script, otherwise we can keep it
                 	discarded.add(arg)
-                all_fixes = get_possible_fixes((prim, sec), arg, b_vrs, vrs)
+                all_fixes = get_possible_fixes((prim, sec), arg)
                 if all_fixes:
                     for (fix_list, fix_line) in all_fixes:
                         # Create a mutant for every possible fix
@@ -330,7 +596,7 @@ def main(argv):
         # Adjust the file naming
         str_cnt += 1
         mut_cnt = 0
-        print("Processing string number:", str(str_cnt), "/", str(len(rej_strs)))
+        print("Processing string number:", str(str_cnt), "/", str(len(rej_strs)),flush=True)
     # Remove the copy of the original script since it is not a mutant
     os.remove(ar1)
     print("Done. The final mutants are in:", mut_dir)

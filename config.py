@@ -20,15 +20,15 @@ def get_default_config(conf_path=None):
 		# Maximum attempts of how often a valid string gets mutated to get an invalid string
 		"max_mut_attempts" : "100",
 		# The type of arguments to trace. taintedstr.tstr is recommended for accuracy, using str may help compatibility.
-		#"trace_type" : "''",
-		"trace_type" : "taintedstr.tstr('')",
+		"trace_type" : "''",
+		#"trace_type" : "taintedstr.tstr('')",
 		# Default folder where mutation results are stored
 		"default_mut_dir" : "mutants/",
 		# The timeout from the actual script execution is calcualted as int(multi*(slowest seen execution)) + 1. Multi can be adjusted here (default is 2).
 		"timeout_slow_multi" : "2",
 		# Remove potentially invalid scripts after checking?
 		"default_clean_invalid" : "False",
-		# File containing the adjustments of relative imports
-		"default_imp_tmp" : "loc_level.dict"
+		# Percentage of elements in a condition that may be mutated. Setting this to 0 will still allow 1 mutation per condition.
+		"cond_mut_limit" : "1.0"
 		}
 		return DEFAULT_CONFIG
