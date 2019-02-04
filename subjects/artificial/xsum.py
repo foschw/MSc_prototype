@@ -21,9 +21,9 @@ class TestXSum(unittest.TestCase):
 def main(val):
     sum = 0
     for e in val:
-        if e not in "0123456789":
-            raise Exception("NaN")
-        else: sum += int(e)
+        if e in "0123456789":
+            sum += int(e)
+        else: raise Exception("NaN")
     return sum
 
 if __name__ == "__main__":
