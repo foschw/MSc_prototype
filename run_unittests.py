@@ -15,7 +15,9 @@ def run_unittests_for_script(script):
 	script_dir = os.path.abspath(script[:script.rfind("/")+1]).replace("\\","/")
 	try:
 		proc = subprocess.Popen(cmd, shell=False,stderr=subprocess.PIPE,cwd=script_dir)
-		res = proc.communicate()[1].decode(sys.stderr.encoding)
+		res = proc.communicate(timeout=int(current_config["unittest_timeout"]))[1].decode(sys.stderr.encoding)
+	except subprocess.TimeoutExpired:
+		return (1,0)
 	except:
 		raise SystemExit("Unittest execution failed.")
 	return extract_test_stats(res)
@@ -42,6 +44,7 @@ def extract_test_stats(unittest_output):
 	return (total_tests-num_fail,num_fail)
 
 def main(argv):
+	global current_config
 	current_config = get_default_config()
 	# Specify the original name of the script or its path to check the results. 
 	if len(argv) < 2:
