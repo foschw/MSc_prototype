@@ -17,7 +17,7 @@ def run_unittests_for_script(script):
 		proc = subprocess.Popen(cmd, shell=False,stderr=subprocess.PIPE,cwd=script_dir)
 		res = proc.communicate(timeout=int(current_config["unittest_timeout"]))[1].decode(sys.stderr.encoding)
 	except subprocess.TimeoutExpired:
-		return (1,0)
+		return (-1,-1)
 	except:
 		raise SystemExit("Unittest execution failed.")
 	return extract_test_stats(res)
