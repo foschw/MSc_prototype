@@ -554,7 +554,8 @@ def main(argv):
 
             (prim, sec) = get_left_diff(cdict, b_cdict)
             prim = [e for e in prim if e[0] not in history and e[0] in lines]
-            sec = [e for e in sec if e[0] not in history and e[0] in lines]
+            # sec = [e for e in sec if e[0] not in history and e[0] in lines]
+            sec = []
             print("Used string:", repr(s))
             print("Difference to base (flipped):", prim)
             print("Difference to base (new):", sec)
