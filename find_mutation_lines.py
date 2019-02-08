@@ -641,10 +641,51 @@ def main(argv):
                 file.write(str(i) + ": " + repr(rej_strs[i][0])+"\n")
             file.write("The baseinput was: " + repr(basein))
 
+    mutants_with_cause = remove_duplicates(mut_dir, ".py", mutants_with_cause)
+
     with open(mut_dir[:-1] + ".log", "w", encoding="UTF-8") as file:
         file.write("Mutating script: " + repr(orig_file) + "\n")
         for e in mutants_with_cause:
             file.write(repr(e) + "\n")
+
+def remove_duplicates(fdir, ext, pairlst):
+    ext = ext if not ext.startswith(".") else ext[1:]
+    fdir = fdir if not fdir.endswith("/") else fdir[:-1]
+    files = []
+    dups = []
+    rmdup = []
+    for fl in glob.glob(fdir + "/*." + ext):
+        fl = fl.replace("\\", "/")
+        files.append(fl)
+
+    if len(files) < 2:
+        return pairlst
+
+    for idx1 in range(len(files)):
+        fl1 = files[idx1]
+        for idx2 in range(idx1+1,len(files)):
+            fl2 = files[idx2]
+            with open(fl1, "r", encoding="UTF-8") as f1i:
+                with open(fl2, "r", encoding="UTF-8") as f2i:
+                    if f1i.read() == f2i.read():
+                        dups.append((fl1, fl2))
+
+    for (a, b) in dups:
+        if os.path.exists(a) and os.path.exists(b):
+            os.remove(b)
+            rmdup.append(b)
+
+    i = 0
+    while i < len(pairlst):
+        if pairlst[i][0] in rmdup:
+            del pairlst[i]
+        else:
+            i += 1
+
+    print("Removed duplicates:", len(rmdup), flush=True)
+
+    return pairlst
+
 
 if __name__ == "__main__":
     main(sys.argv)

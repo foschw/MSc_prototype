@@ -67,10 +67,10 @@ def main(argv):
 		for _,line in enumerate(bf):
 			try:
 				mtnt = eval(line)
-				targets.append(mtnt)
+				if mtnt not in targets:
+					targets.append(mtnt)
 			except:
 				continue
-
 	for f in targets:
 		print("Running tests for: " + f, flush=True)
 		(tpass,tfail) = run_unittests_for_script(f)
