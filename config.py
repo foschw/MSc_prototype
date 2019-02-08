@@ -33,6 +33,6 @@ def get_default_config(conf_path=None):
 		# Percentage of elements in a condition that may be mutated. Setting this to 0 will still allow 1 mutation per condition.
 		"cond_mut_limit" : "1.0",
 		# Number of retries for mutating a condition
-		"mut_retries" : "2",
+		"mut_retries" : "5",
 		}
 		return DEFAULT_CONFIG

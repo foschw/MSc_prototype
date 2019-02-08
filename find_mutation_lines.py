@@ -306,7 +306,7 @@ def mutate_default(inpt):
         inpt_ast = ast.fix_missing_locations(ast.parse(inpt))
         mtrans = MutTransformer(bin_num)
         res = mtrans.visit(inpt_ast)
-        reslst.append(astunparse.unparse(res).lstrip().rstrip())
+        reslst.append((astunparse.unparse(res).lstrip().rstrip(),bin_num))
     return reslst
 
 # Computes the "left difference" of two sets.
@@ -345,13 +345,13 @@ def make_new_conditions(lineno, file):
     full_str = manual_errs.get_if_from_line(lineno, file)
     # Compute partial inversions
     for part_inv in get_partial_inversions(full_str):
-        possible_conditions.append(part_inv)
+        possible_conditions.append((part_inv, None))
     # Reduce the string to only the condition, i.e. "if True:" becomes "True"
     cond_str = full_str[full_str.find("if")+3:full_str.rfind(":")]
     # Get default mutations
-    for new_cond in mutate_default(cond_str):
+    for (new_cond, permidx) in mutate_default(cond_str):
         nc1 = full_str[:full_str.find("if")+2] + " " + new_cond + ":"
-        possible_conditions.append(str(nc1))
+        possible_conditions.append((str(nc1),permidx))
 
     return possible_conditions
 
@@ -506,12 +506,12 @@ def main(argv):
     # Run the mutation process for every rejected string
     for s in rej_strs:
         s = s[0]
-        queue = [(ar1, [], 0)]
+        queue = [(ar1, [], 0, None)]
         discarded = set()
         # Save which exception the first execution of the rejected string produced
         original_ex_str = None
         while queue:
-            (arg, history, retries) = queue.pop(0)
+            (arg, history, retries, pidx) = queue.pop(0)
             print("Current script:", arg)
             # Check whether the chosen correct string is now rejected
             try:
@@ -562,19 +562,26 @@ def main(argv):
             if skip:
                 print("Removed:", arg, "(unsuccessful modification)")
                 discarded.add(arg)
-                if retries < int(current_config["mut_retries"]):
-                    # Mutate the last element again
-                    fixes = get_possible_fixes(([e],[]),arg)
-                    if fixes:
-                        for (fix_lst, fix_ln) in fixes:
-                            for fx in fix_lst:
-                                if not fx.endswith("\n"):
-                                    fx = fx + "\n"
-                                mods = { fix_ln : fx }
-                                cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
-                                queue.append((cand, history.copy(), retries+1))
-                                file_copy_replace(cand, arg, mods)
-                                mut_cnt += 1
+                if retries < int(current_config["mut_retries"]) and pidx:
+                    # Try again
+                    full_str = manual_errs.get_if_from_line(history[-1], arg)
+                    cond_str = full_str[full_str.find("if")+3:full_str.rfind(":")]
+                    inpt_ast = ast.fix_missing_locations(ast.parse(cond_str))
+                    mvisit = MutVisit()
+                    mvisit.visit(inpt_ast)
+                    # The previous modification changed the amount of tokens.
+                    if mvisit.mod_cnt > len(pidx):
+                        pidx = pidx.zfill(mvisit.mod_cnt)
+                    mtrans = MutTransformer(pidx)
+                    res = mtrans.visit(inpt_ast)
+                    fix = full_str[:full_str.find("if")+2] + " " + astunparse.unparse(res).lstrip().rstrip() + ":"
+                    if not fix.endswith("\n"):
+                        fix = fix + "\n"
+                        mods = { history[-1] : fix }
+                        cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
+                        queue.append((cand, history.copy(), retries+1, pidx))
+                        file_copy_replace(cand, arg, mods)
+                        mut_cnt += 1
                 continue
 
             if berr:
@@ -602,12 +609,12 @@ def main(argv):
                 if all_fixes:
                     for (fix_list, fix_line) in all_fixes:
                         # Create a mutant for every possible fix
-                        for fix in fix_list:
+                        for (fix, permindex) in fix_list:
                             if not fix.endswith("\n"):
                                 fix = fix + "\n"
                             cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
                             mods = { fix_line : fix }
-                            queue.append((cand, history.copy()+[fix_line],0))
+                            queue.append((cand, history.copy()+[fix_line],0, permindex))
                             file_copy_replace(cand, arg, mods)
                             mut_cnt += 1
             # Stop the mutation when the originally rejected string is accepted
