@@ -31,6 +31,8 @@ def get_default_config(conf_path=None):
 		# Remove potentially invalid scripts after checking?
 		"default_clean_invalid" : "False",
 		# Percentage of elements in a condition that may be mutated. Setting this to 0 will still allow 1 mutation per condition.
-		"cond_mut_limit" : "1.0"
+		"cond_mut_limit" : "1.0",
+		# Number of retries for mutating a condition
+		"mut_retries" : "2",
 		}
 		return DEFAULT_CONFIG

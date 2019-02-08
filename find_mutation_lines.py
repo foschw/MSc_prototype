@@ -129,7 +129,7 @@ class MutTransformer(ast.NodeTransformer):
         if self.target[self.idx-1] == "1":
             rn = tree_node.n
             while rn == tree_node.n:
-                rn = random.randint(-10,10)
+                rn = random.randint(-abs(tree_node.n)-1,abs(tree_node.n)+1)
             tree_node.n = rn
 
         return self.generic_visit(tree_node)
@@ -506,12 +506,12 @@ def main(argv):
     # Run the mutation process for every rejected string
     for s in rej_strs:
         s = s[0]
-        queue = [(ar1, [])]
+        queue = [(ar1, [], 0)]
         discarded = set()
         # Save which exception the first execution of the rejected string produced
         original_ex_str = None
         while queue:
-            (arg, history) = queue.pop(0)
+            (arg, history, retries) = queue.pop(0)
             print("Current script:", arg)
             # Check whether the chosen correct string is now rejected
             try:
@@ -545,17 +545,44 @@ def main(argv):
                 discarded.add(arg)
                 continue
 
-            if berr:
-                print("Mutation complete:", arg, "(base rejected)")
-                mutants_with_cause.append((arg, "valid string rejected"))
-
             if original_ex_str is None:
                 original_ex_str = str(err.__class__)
 
             (prim, sec) = get_left_diff(cdict, b_cdict)
-            prim = [e for e in prim if e[0] not in history and e[0] in lines]
-            # sec = [e for e in sec if e[0] not in history and e[0] in lines]
-            sec = []
+            prmry = []
+            # If the mutation in the last step was not useful we discard it
+            skip = False
+            for e in prim:
+                if len(history) > 0 and e[0] == history[-1]:
+                    skip = True
+                    skippair = e
+                elif e[0] not in history and e[0] in lines:
+                    prmry.append(e)
+
+            if skip:
+                print("Removed:", arg, "(unsuccessful modification)")
+                discarded.add(arg)
+                if retries < int(current_config["mut_retries"]):
+                    # Mutate the last element again
+                    fixes = get_possible_fixes(([e],[]),arg)
+                    if fixes:
+                        for (fix_lst, fix_ln) in fixes:
+                            for fx in fix_lst:
+                                if not fx.endswith("\n"):
+                                    fx = fx + "\n"
+                                mods = { fix_ln : fx }
+                                cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
+                                queue.append((cand, history.copy(), retries+1))
+                                file_copy_replace(cand, arg, mods)
+                                mut_cnt += 1
+                continue
+
+            if berr:
+                print("Mutation complete:", arg, "(base rejected)")
+                mutants_with_cause.append((arg, "valid string rejected"))
+
+            prim = prmry
+            sec = [e for e in sec if e[0] not in history and e[0] in lines]
             print("Used string:", repr(s))
             print("Difference to base (flipped):", prim)
             print("Difference to base (new):", sec)
@@ -580,7 +607,7 @@ def main(argv):
                                 fix = fix + "\n"
                             cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
                             mods = { fix_line : fix }
-                            queue.append((cand, history.copy()+[fix_line]))
+                            queue.append((cand, history.copy()+[fix_line],0))
                             file_copy_replace(cand, arg, mods)
                             mut_cnt += 1
             # Stop the mutation when the originally rejected string is accepted
