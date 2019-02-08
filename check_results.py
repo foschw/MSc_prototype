@@ -173,7 +173,7 @@ def main(argv):
 	if clean_invalid and errs:
 		print()
 		print("Removing potentially invalid scripts...")
-		if not base_dir:
+		if str(base_dir) == "/":
 			clean_and_fix_log(errs, cause_file)
 		else:
 			clean_and_fix_log(errs, cause_file, sub_dir, script_base_name)
