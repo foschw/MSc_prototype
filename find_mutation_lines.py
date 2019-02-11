@@ -555,7 +555,6 @@ def main(argv):
             for e in prim:
                 if len(history) > 0 and e[0] == history[-1]:
                     skip = True
-                    skippair = e
                 elif e[0] not in history and e[0] in lines:
                     prmry.append(e)
 
