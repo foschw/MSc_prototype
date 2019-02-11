@@ -512,19 +512,19 @@ def main(argv):
         original_ex_str = None
         while queue:
             (arg, history, retries, pidx) = queue.pop(0)
-            print("Current script:", arg)
+            print("Current script:", arg, flush=True)
             # Check whether the chosen correct string is now rejected
             try:
                 _mod = imp.load_source('mymod', arg)
             except:
-                print("Discarded script:", arg, "(import error)")
+                print("Discarded script:", arg, "(import error)", flush=True)
                 discarded.add(arg)
                 continue
-            print("Executing basestring...")
+            print("Executing basestring...", flush=True)
             try:
                 (_, _, _, berr) = argtracer.trace(arg, basein, timeout=timeout)
             except argtracer.Timeout:
-                print("Discarding,", arg, "(basestring timed out)")
+                print("Discarding:", arg, "(basestring timed out)", flush=True)
                 discarded.add(arg)
                 continue
 
@@ -533,7 +533,7 @@ def main(argv):
             try:
                 (lines, cdict, _, err) = argtracer.trace(arg, s, timeout=timeout)
             except:
-            	print("Tracer timed out on mutated string")
+            	print("Tracer timed out on mutated string", flush=True)
             	discarded.add(arg)
             	continue
 
@@ -541,7 +541,7 @@ def main(argv):
             lines = manual_errs.remove_custom_lines(lines)
             # If the crash happens on a condition we modified there is a high chance it's invalid, so we remove it.
             if lines[0] in history:
-                print("Removed:", arg, "(potentially corrupted condition)")
+                print("Removed:", arg, "(potentially corrupted condition)", flush=True)
                 discarded.add(arg)
                 continue
 
@@ -559,7 +559,7 @@ def main(argv):
                     prmry.append(e)
 
             if skip:
-                print("Removed:", arg, "(unsuccessful modification)")
+                print("Removed:", arg, "(unsuccessful modification)", flush=True)
                 discarded.add(arg)
                 if retries < int(current_config["mut_retries"]) and pidx:
                     # Try again
@@ -584,22 +584,22 @@ def main(argv):
                 continue
 
             if berr:
-                print("Mutation complete:", arg, "(base rejected)")
+                print("Mutation complete:", arg, "(base rejected)", flush=True)
                 mutants_with_cause.append((arg, "valid string rejected"))
 
             prim = prmry
             sec = [e for e in sec if e[0] not in history and e[0] in lines]
-            print("Used string:", repr(s))
-            print("Difference to base (flipped):", prim)
-            print("Difference to base (new):", sec)
-            print("Final line:", str(lines[0]))
-            print("")
-            print("Change history:", history)
+            print("Used string:", repr(s), flush=True)
+            print("Difference to base (flipped):", prim, flush=True)
+            print("Difference to base (new):", sec, flush=True)
+            print("Final line:", str(lines[0]), flush=True)
+            print("", flush=True)
+            print("Change history:", history, flush=True)
             if err:
             	# Check whether the exception is different from the first encountered one
             	diff_err = str(err.__class__) != original_ex_str
             	err = True
-            print("Mutated string rejected:", err, "different:", diff_err)
+            print("Mutated string rejected:", err, "different:", diff_err, flush=True)
             if err and not diff_err:
                 if not berr:
                     # In case the base string is not rejected we discard the script, otherwise we can keep it
@@ -618,14 +618,14 @@ def main(argv):
                             mut_cnt += 1
             # Stop the mutation when the originally rejected string is accepted
             elif arg != ar1:
-            	print("Mutation complete:", arg, "(mutated string accepted)")
+            	print("Mutation complete:", arg, "(mutated string accepted)", flush=True)
             	mutants_with_cause.append((arg, "mutated string accepted"))
             		
         # Don't delete the original script, we need it to create mutants from whenever a new rejected string is processed
         discarded.discard(ar1)
         # Remove all scripts that neither reject the base string nor accept the mutated string
         for scrpt in discarded:
-            print("Removed:", scrpt)
+            print("Removed:", scrpt, flush=True)
             os.remove(scrpt)
         # Adjust the file naming
         str_cnt += 1
