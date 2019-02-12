@@ -665,6 +665,7 @@ def main(argv):
             file.write(repr(e) + "\n")
 
 def remove_duplicates(fdir, ext, pairlst):
+    print("Removing duplicates...", flush=True)
     ext = ext if not ext.startswith(".") else ext[1:]
     fdir = fdir if not fdir.endswith("/") else fdir[:-1]
     files = []
