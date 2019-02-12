@@ -495,7 +495,7 @@ def main(argv):
 
     timeout = max(timeout, int(int(current_config["timeout_slow_multi"])*slowest_run)+1)
     try:
-        (_, b_cdict, b_vrs, err) = argtracer.trace(ar1, basein, timeout=timeout)
+        (_, b_cdict, _, err) = argtracer.trace(ar1, basein, timeout=timeout)
     except Timeout:
         print("Execution timed out on basestring! Try increasing timeout (currently", timeout," seconds)")    
 
