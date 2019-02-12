@@ -408,14 +408,14 @@ def get_possible_fixes(delta, file):
         for (lineno, state) in prim:
         	fix_list = make_new_conditions(lineno,file)
         	if fix_list:
-        	    fixmap.append((fix_list, lineno))
+        	    fixmap.append((fix_list, lineno, None))
     # Otherwise test all remaining candidates
     elif sec:
         for (lineno, state) in sec:
         	fix_list = make_new_conditions(lineno,file)
         	if fix_list:
-        	    fixmap.append((fix_list, lineno))
-    # Returns a list of ([possible fixes for a line], line number)
+        	    fixmap.append((fix_list, lineno, state))
+    # Returns a list of ([possible fixes for a line], line number, pre-modification condition value)
     return fixmap
 
 # Creates a mutant by copying the script it is derived from and applying modifications for given lines
@@ -506,12 +506,12 @@ def main(argv):
     # Run the mutation process for every rejected string
     for s in rej_strs:
         s = s[0]
-        queue = [(ar1, [], 0, None)]
+        queue = [(ar1, [], 0, None, None)]
         discarded = set()
         # Save which exception the first execution of the rejected string produced
         original_ex_str = None
         while queue:
-            (arg, history, retries, pidx) = queue.pop(0)
+            (arg, history, retries, pidx, scstate) = queue.pop(0)
             print("Current script:", arg, flush=True)
             # Check whether the chosen correct string is now rejected
             try:
@@ -578,23 +578,40 @@ def main(argv):
                         fix = fix + "\n"
                         mods = { history[-1] : fix }
                         cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
-                        queue.append((cand, history.copy(), retries+1, pidx))
+                        queue.append((cand, history.copy(), retries+1, pidx, None))
                         file_copy_replace(cand, arg, mods)
                         mut_cnt += 1
+                continue
+
+            sskip = False
+            scndry = []
+            for e in sec:
+                if e[0] in lines:
+                    if scstate is not None and e[0] == history[-1] and e[1] == scstate:
+                        sskip = True
+                    elif e[0] not in history:
+                        scndry.append(e)
+            # Retries would be possible here as well, but since our search is blind for these conditions it's skipped for now
+            if sskip:
+                print("Removed:", arg, "(unsuccessful modification)", flush=True)
+                discarded.add(arg)
                 continue
 
             if berr:
                 print("Mutation complete:", arg, "(base rejected)", flush=True)
                 mutants_with_cause.append((arg, "valid string rejected"))
 
+            # Check whether the modification changed the condition state
+
             prim = prmry
-            sec = [e for e in sec if e[0] not in history and e[0] in lines]
+            sec = scndry
             print("Used string:", repr(s), flush=True)
+            print("Queue lenght:", len(queue), flush=True)
+            print("Change history:", history, flush=True)
             print("Difference to base (flipped):", prim, flush=True)
             print("Difference to base (new):", sec, flush=True)
             print("Final line:", str(lines[0]), flush=True)
             print("", flush=True)
-            print("Change history:", history, flush=True)
             if err:
             	# Check whether the exception is different from the first encountered one
             	diff_err = str(err.__class__) != original_ex_str
@@ -606,14 +623,14 @@ def main(argv):
                 	discarded.add(arg)
                 all_fixes = get_possible_fixes((prim, sec), arg)
                 if all_fixes:
-                    for (fix_list, fix_line) in all_fixes:
+                    for (fix_list, fix_line, cstate) in all_fixes:
                         # Create a mutant for every possible fix
                         for (fix, permindex) in fix_list:
                             if not fix.endswith("\n"):
                                 fix = fix + "\n"
                             cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
                             mods = { fix_line : fix }
-                            queue.append((cand, history.copy()+[fix_line],0, permindex))
+                            queue.append((cand, history.copy()+[fix_line],0, permindex, cstate))
                             file_copy_replace(cand, arg, mods)
                             mut_cnt += 1
             # Stop the mutation when the originally rejected string is accepted
