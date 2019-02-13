@@ -157,7 +157,7 @@ def gen(arg, timelimit):
         for i in range(max(int(mut_acc/max(1,(len(valid_str_lst)-len(rejected)))),1)):
             mut_acc -= 1
             mutator = random.choice(smutops) if len(str(a)) <= min_len else random.choice(mutops)
-            a1 = taintedstr.tstr(mutator(str(a)))
+            a1 = str(mutator(str(a)))
             try:        
                 res = _mod.main(a1)
             except:
