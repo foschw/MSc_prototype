@@ -15,6 +15,7 @@ from config import get_default_config
 import ast
 import astunparse
 from math import floor
+import functools
 
 current_config = None
 
@@ -668,6 +669,11 @@ def main(argv):
         for e in mutants_with_cause:
             file.write(repr(e) + "\n")
 
+@functools.lru_cache(maxsize=None)
+def read_file_cached(filename):
+    with open(filename, "r", encoding="UTF-8") as fli:
+        return fli.read()
+
 def remove_duplicates(fdir, ext, pairlst):
     print("Removing duplicates...", flush=True)
     ext = ext if not ext.startswith(".") else ext[1:]
@@ -681,15 +687,22 @@ def remove_duplicates(fdir, ext, pairlst):
 
     if len(files) < 2:
         return pairlst
+    cmps = (len(files)*(len(files)-1))/2
+    lstep = 0
+    prog = 0
 
     for idx1 in range(len(files)):
         fl1 = files[idx1]
+        s1 = read_file_cached(fl1)
         for idx2 in range(idx1+1,len(files)):
             fl2 = files[idx2]
-            with open(fl1, "r", encoding="UTF-8") as f1i:
-                with open(fl2, "r", encoding="UTF-8") as f2i:
-                    if f1i.read() == f2i.read():
-                        dups.append((fl1, fl2))
+            if s1 == read_file_cached(fl2):
+                dups.append((fl1, fl2))
+            prog += 1
+            cprog = (prog/cmps)*100
+            if cprog > lstep:
+                lstep += 1
+                print("Progess:", int(cprog), "%", flush=True)
 
     for (a, b) in dups:
         if os.path.exists(a) and os.path.exists(b):
