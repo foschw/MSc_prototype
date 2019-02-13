@@ -546,7 +546,11 @@ def main(argv):
                 continue
 
             if original_ex_str is None:
-                original_ex_str = str(err.__class__)
+                if err == False:
+                    print("Skipping string:", s, "(not rejected)!", flush=True)
+                    continue
+                else:
+                    original_ex_str = str(err.__class__)
 
             (prim, sec) = get_left_diff(cdict, b_cdict)
             prmry = []
