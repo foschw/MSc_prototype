@@ -16,6 +16,7 @@ import ast
 import astunparse
 from math import floor
 import functools
+from copy import deepcopy
 
 current_config = None
 
@@ -477,6 +478,7 @@ def main(argv):
     # Get base values from the non-crashing run with the longest input
     basein = ""
     progress = 1
+    base_conds = []
     for cand in rej_strs:
         basein = cand[1] if len(cand[1]) > len(basein) else basein
         pos = 0
@@ -484,7 +486,8 @@ def main(argv):
             start_time = timer()
             try:
                 print("Tracing:", progress, "/", 2*len(rej_strs), flush=True)
-                (_,_,_,someerror) = argtracer.trace(ar1, str_inpt)
+                (_,base_cond,_,someerror) = argtracer.trace(ar1, str_inpt)
+                base_conds.append(base_cond)
                 if pos == 1 and someerror:
                     raise SystemExit("Invalid input: " + repr(str_inpt) + ".\nAborted.")
             finally:
@@ -496,7 +499,7 @@ def main(argv):
 
     timeout = max(timeout, int(int(current_config["timeout_slow_multi"])*slowest_run)+1)
     try:
-        (_, b_cdict, _, err) = argtracer.trace(ar1, basein, timeout=timeout)
+        (_, _, _, err) = argtracer.trace(ar1, basein, timeout=timeout)
     except Timeout:
         print("Execution timed out on basestring! Try increasing timeout (currently", timeout," seconds)")    
 
@@ -511,6 +514,8 @@ def main(argv):
         discarded = set()
         # Save which exception the first execution of the rejected string produced
         original_ex_str = None
+        b_cdict = None
+        blen = 0
         while queue:
             (arg, history, retries, pidx, scstate) = queue.pop(0)
             print("Current script:", arg, flush=True)
@@ -537,6 +542,13 @@ def main(argv):
             	print("Tracer timed out on mutated string", flush=True)
             	discarded.add(arg)
             	continue
+
+            if b_cdict is None:
+                for cond_cand in base_conds:
+                    (prim, _) = get_left_diff(deepcopy(cdict), deepcopy(cond_cand))
+                    if len(prim) > blen:
+                        blen = len(prim)
+                        b_cdict = cond_cand
 
             # Remove lines used to construct custom exceptions
             lines = manual_errs.remove_custom_lines(lines)
