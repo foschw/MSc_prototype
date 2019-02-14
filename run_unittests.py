@@ -71,8 +71,10 @@ def main(argv):
 					targets.append(mtnt)
 			except:
 				continue
+	cnt = 1
 	for f in targets:
-		print("Running tests for: " + f, flush=True)
+		print("Running tests for:", f, "(" + str(cnt) + "/" + str(len(targets)) + ")", flush=True)
+		cnt += 1
 		(tpass,tfail) = run_unittests_for_script(f)
 		if tfail == 0:
 			if tpass > 0:
@@ -90,9 +92,16 @@ def main(argv):
 			dest.write("---------------------------------------------------------------------------------------------------\n")
 			dest.write("\n")
 
+		scripts_f = sorted(scripts_f, key=by_fail)
+
 		for (scrpt, (tpass,tfail)) in scripts_f:
 			dest.write(scrpt + ":\nPass: " + str(tpass) + ", Fail: " + str(tfail) + " \n")
 			dest.write("\n")
+
+def by_fail(result):
+	(_, (_, tfail)) = result
+	rv = tfail if tfail >= 0 else float("inf")
+	return rv
 
 if __name__ == "__main__":
 	main(sys.argv)
