@@ -129,8 +129,10 @@ def main(argv):
 		raise SystemExit("Original script rejects baseinput: " + repr(basein))
 
 	# Check all mutants for behaviour changes
+	cnt = 1
 	for my_mutant in all_mutants:
-		print("Checking mutant:", my_mutant, flush=True)
+		print("Checking mutant:", my_mutant, "(" + str(cnt) + "/" + str(len(all_mutants)) + ")", flush=True)
+		cnt += 1
 		# Check whether the valid string is rejected
 		exc_mutant_valid = execute_script_with_argument(my_mutant, basein)
 		if exc_mutant_valid and exc_mutant_valid != "-1":
