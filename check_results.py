@@ -7,6 +7,7 @@ import os
 from config import get_default_config
 from tidydir import TidyDir as TidyDir
 import shutil
+import argtracer
 
 current_config = None
 
@@ -71,6 +72,21 @@ def clean_and_fix_log(errs, logfile, sub_dir=None, script_base_name=None):
 	os.rename(logfile, logfile + ".old")
 	os.rename(tmp, logfile)
 
+def find_baseinput(ar1, mut_base_pairs):
+	basein = None
+	ln_cond = -1
+	for cand in mut_base_pairs:
+		try:
+			(_,base_cond,_,_) = argtracer.trace(ar1, cand[1])
+			if len(base_cond) > ln_cond:
+				ln_cond = len(base_cond)
+				basein = cand[1]
+		except:
+			pass
+
+	return basein
+
+
 def main(argv):
 	global current_config
 	current_config = get_default_config()
@@ -115,11 +131,10 @@ def main(argv):
 					all_mutants.append(the_mutant)
 
 	rej_strs = pickle.load(open(inputs_file, "rb"))
-	basein = ""
+	basein = find_baseinput(original_file, rej_strs)
 	inputs = []
 	# Find the used base candidate (i.e. longest string)
 	for cand in rej_strs:
-		basein = str(cand[1]) if len(str(cand[1])) > len(basein) else basein
 		inputs.append(str(cand[0]))
 
 	errs = {}

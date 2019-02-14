@@ -169,7 +169,8 @@ def gen(arg, timelimit):
 
     return rejected
 
-def main(args):
+def main(args, seed=None):
+    random.seed(seed)
     # Read the config
     global current_config
     if not current_config:

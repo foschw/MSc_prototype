@@ -439,7 +439,8 @@ def cleanup(mut_dir):
         if re_mutant.search(fl):
             os.remove(fl)
 
-def main(argv):
+def main(argv, seed=None):
+    random.seed(seed)
     global current_config
     current_config = get_default_config()
     arg = argv[1]
@@ -475,10 +476,11 @@ def main(argv):
 
     # Record how long the slowest execution takes to have a better prediction of the required timeout
     slowest_run = 0
-    # Get base values from the non-crashing run with the longest input
+    # Get base values from the non-crashing run with the most conditions traversed
     basein = ""
     progress = 1
     base_conds = []
+    ln_cond = -1
     for cand in rej_strs:
         basein = cand[1] if len(cand[1]) > len(basein) else basein
         pos = 0
@@ -487,9 +489,13 @@ def main(argv):
             try:
                 print("Tracing:", progress, "/", 2*len(rej_strs), flush=True)
                 (_,base_cond,_,someerror) = argtracer.trace(ar1, str_inpt)
-                base_conds.append(base_cond)
-                if pos == 1 and someerror:
-                    raise SystemExit("Invalid input: " + repr(str_inpt) + ".\nAborted.")
+                if pos == 1:
+                    base_conds.append(base_cond)
+                    if len(base_cond) > ln_cond:
+                        basein = cand[1]
+                        ln_cond = len(base_cond)
+                    if someerror:
+                        raise SystemExit("Invalid input: " + repr(str_inpt) + ".\nAborted.")
             finally:
                 pos += 1
                 time_elapsed = timer() - start_time
@@ -499,7 +505,7 @@ def main(argv):
 
     timeout = max(timeout, int(int(current_config["timeout_slow_multi"])*slowest_run)+1)
     try:
-        (_, _, _, err) = argtracer.trace(ar1, basein, timeout=timeout)
+        (_, b_cdict, _, err) = argtracer.trace(ar1, basein, timeout=timeout)
     except Timeout:
         print("Execution timed out on basestring! Try increasing timeout (currently", timeout," seconds)")    
 
@@ -514,8 +520,8 @@ def main(argv):
         discarded = set()
         # Save which exception the first execution of the rejected string produced
         original_ex_str = None
-        b_cdict = None
-        blen = 0
+        b_cdict = None if current_config["variable_base"] == "True" else b_cdict
+        blen = -1
         while queue:
             (arg, history, retries, pidx, scstate) = queue.pop(0)
             print("Current script:", arg, flush=True)
@@ -546,7 +552,7 @@ def main(argv):
             if b_cdict is None:
                 for cond_cand in base_conds:
                     (prim, _) = get_left_diff(deepcopy(cdict), deepcopy(cond_cand))
-                    if len(prim) > blen or blen == 0:
+                    if len(prim) > blen:
                         blen = len(prim)
                         b_cdict = cond_cand
 

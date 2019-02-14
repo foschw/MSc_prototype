@@ -19,6 +19,7 @@ def main(argv):
     binfile = "rejected_" + prog[prog.rfind("/")+1:prog.rfind(".py")] + ".bin" if not argv[2] else argv[2]
     timelimit = int(current_config["default_gen_time"]) if not argv[3] else argv[3]
     timeout = int(current_config["min_timeout"]) if not argv[4] else argv[4]
+    seed = None if not argv[5] else argv[5]
 
     # Generate inputs in case no binary file is supplied
     if not argv[2]:
@@ -27,13 +28,13 @@ def main(argv):
         with open(target_loc, "w", encoding="UTF-8") as inst_out:
             inst_out.write(instr_code)
         print("Generating inputs for:", prog, "...", flush=True)
-        gen([None, target_loc, timelimit, binfile])
+        gen([None, target_loc, timelimit, binfile],seed)
     # Otherwise use the given inputs
     else:
         print("Using inputs from:", binfile, flush=True)
     print("Starting mutation...", prog, flush=True)
     # Run the mutation algorithm
-    mutate([None, prog, binfile, timeout])
+    mutate([None, prog, binfile, timeout], seed)
     # Check whether the results are fine and remove potentially problematic scripts
     print("Testing result integrity...", flush=True)
     check([None, prog, binfile, True])
@@ -49,6 +50,7 @@ if __name__ == "__main__":
     binfile = None
     timelimit = None
     timeout = None
+    seed = None
     if len(sys.argv) < 2:
         raise SystemExit("Please specifiy a .py file as argument.")
     elif len(sys.argv) > 2 and not sys.argv[2].startswith("-"):
@@ -64,5 +66,7 @@ if __name__ == "__main__":
             timelimit = int(a)
         elif opt == "-l":
             timeout = int(a)
+        elif opt == "-s":
+            seed = int(a)
 
-    main([sys.argv[0],sys.argv[1],binfile,timelimit,timeout])
+    main([sys.argv[0],sys.argv[1],binfile,timelimit,timeout,seed])
