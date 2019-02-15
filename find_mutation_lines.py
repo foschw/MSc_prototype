@@ -551,7 +551,7 @@ def main(argv, seed=None):
 
             if b_cdict is None:
                 for cond_cand in base_conds:
-                    (prim, _) = get_left_diff(deepcopy(cdict), deepcopy(cond_cand))
+                    (prim, _) = get_left_diff(deepcopy(cdict), cond_cand)
                     if len(prim) > blen:
                         blen = len(prim)
                         b_cdict = cond_cand

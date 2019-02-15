@@ -57,7 +57,7 @@ if __name__ == "__main__":
         raise SystemExit("Invalid parameter after script. \n Possible options: \n -b \"binary input file\", \n -t \"time for generation (in s)\", \n -l \"timeout for mutant execution (in s)")
 
 
-    opts, args = getopt.getopt(sys.argv[2:], "b:t:l:")
+    opts, args = getopt.getopt(sys.argv[2:], "b:t:l:s:")
     for opt, a in opts:
         if opt == "-b":
             print("Using binary file:", a, flush=True)
