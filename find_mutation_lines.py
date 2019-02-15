@@ -604,6 +604,8 @@ def main(argv, seed=None):
                         queue.append((cand, history.copy(), retries+1, pidx, None))
                         file_copy_replace(cand, arg, mods)
                         mut_cnt += 1
+                elif retries >= int(current_config["mut_retries"]):
+                    print("Retries exceeded:", arg, flush=True)
                 continue
 
             sskip = False
