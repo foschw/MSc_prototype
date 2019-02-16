@@ -477,13 +477,13 @@ def main(argv, seed=None):
     # Record how long the slowest execution takes to have a better prediction of the required timeout
     slowest_run = 0
     # Get base values from the non-crashing run with the most conditions traversed
-    basein = ""
     progress = 1
     base_conds = []
     ln_cond = -1
     for cand in rej_strs:
-        basein = cand[1] if len(cand[1]) > len(basein) else basein
         pos = 0
+        print("Mutated string:", repr(cand[0]), flush=True)
+        print("Valid string:", repr(cand[1]), flush=True)
         for str_inpt in cand:
             start_time = timer()
             try:
