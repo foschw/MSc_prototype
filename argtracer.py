@@ -198,12 +198,15 @@ def trace(arg, inpt, timeout=None):
     global cond_dict
     global cond_flag
     global depth
+    global base_ast
     if timeout:
         time_start = timer()
         timeo = timeout
     else:
         timeo = None
         time_start = None
+    if base_ast is None:
+    	print("ERROR: Please initialize argtracer by calling comput_base_ast(file,tmpfile)", flush=True)
     depth = -1
     ar = arg
     lines = []
