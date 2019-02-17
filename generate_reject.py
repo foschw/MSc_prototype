@@ -132,31 +132,38 @@ def get_valid_inputs(arg, timelimit):
 # Generate rejected strings by applying mutation operations
 def gen(arg, timelimit):
     global current_config
-    # If the string is too short do not use mutators that shrink it further
-    min_len = int(current_config["min_mut_len"])
     # Mutation attempts per generated string since mutations are cheap but generation is expensive
+    max_rej = int(timelimit)
     mut_attempts = int(current_config["max_mut_attempts"])
     _mod = imp.load_source('mymod', arg)
     rejected = set()
-    # Mutation operations well suited for short strings
-    smutops = [bitflip, byteflip, insert]
-    # Mutation operations for longer strings
-    lmutops = [trim, delete, swap]
-    mutops = smutops + lmutops
+    # Mutation operations for strings of any length
+    l_mutops = [bitflip, byteflip, insert]
+    # Mutation operations for strings with length > 1
+    l2_mutops = [swap]
+    # Mutation operations for strings with length > 0
+    l1_mutops = [trim, delete]
     valid_strs = get_valid_inputs(arg, timelimit)
     valid_str_lst = RandomizedList([elemnt for elemnt in valid_strs])
     print("Got", len(valid_strs), "valid strings from pychains (" + str(timelimit) + " s)")
+    max_rej = max(max_rej, 2*len(valid_strs))
     # The rough amount of attempts for the whole set of strings
     mut_acc = mut_attempts * len(valid_str_lst)
     while mut_acc > 0:
         # Limit the amount of output elements
-        if len(rejected) >= 2*len(valid_str_lst):
+        if len(rejected) >= max_rej:
             break
         a = valid_str_lst.get_random_element()
         # Mutate up to mut_attempts times
         for i in range(max(int(mut_acc/max(1,(len(valid_str_lst)-len(rejected)))),1)):
             mut_acc -= 1
-            mutator = random.choice(smutops) if len(str(a)) <= min_len else random.choice(mutops)
+            if len(str(a)) > 1:
+                mutops = l_mutops + l2_mutops + l1_mutops
+            elif len(str(a)) == 1:
+                mutops = l_mutops + l1_mutops
+            else:
+                mutops = l_mutops
+            mutator = random.choice(mutops)
             a1 = str(mutator(str(a)))
             try:        
                 res = _mod.main(a1)
@@ -183,7 +190,7 @@ def main(args, seed=None):
     resl = []
     for r in res:
         resl.append(r)
-    print(resl, flush=True)
+    print("All generated strings:", resl, flush=True)
     print(str(len(resl)), " rejected elements created", flush=True)
     # Save the mutated strings in binary as a file
     res_file = open(outfile, mode='wb')

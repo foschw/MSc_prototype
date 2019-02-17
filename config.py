@@ -14,17 +14,15 @@ def get_default_config(conf_path=None):
 		# Overhead for the generation time limit
 		"best_overhead" : "0.9",
 		# Default Time limit for the generation algorithm in s
-		"default_gen_time" : "60",
+		"default_gen_time" : "900",
 		# Default binary output file for rejected strings
 		"default_rejected" : "rejected.bin",
-		# Minimal length required for shrinking mutations to be applicable
-		"min_mut_len" : "5",
 		# Maximum attempts of how often a valid string gets mutated to get an invalid string
-		"max_mut_attempts" : "100",
+		"max_mut_attempts" : "10000",
 		# The type of arguments to trace. taintedstr.tstr is recommended for accuracy, using str may help compatibility.
 		"trace_type" : "''",
 		#"trace_type" : "taintedstr.tstr('')",
-		# Default folder where mutation results are stored
+		# Default folder where mutation results are stored. There may be a fair bit of stress put on the drive.
 		"default_mut_dir" : "mutants/",
 		# The timeout from the actual script execution is calcualted as int(multi*(slowest seen execution)) + 1. Multi can be adjusted here (default is 2).
 		"timeout_slow_multi" : "2",
