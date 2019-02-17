@@ -17,7 +17,12 @@ def execute_script_with_argument(script, argument):
 	cmd = ["python", script, argument]
 	try:
 		proc = subprocess.Popen(cmd, shell=False,stderr=subprocess.PIPE)
-		err = proc.communicate()[1].decode(sys.stderr.encoding)
+		err = proc.communicate(timeout=int(current_config["unittest_timeout"]))[1].decode(sys.stderr.encoding)
+	except subprocess.TimeoutExpired:
+		proc.kill()
+		proc.communicate()
+		print("Warning:", script, "timed out.")
+		return "-1"
 	except:
 		return "-1"
 	return extract_error_name(err)
@@ -73,6 +78,10 @@ def clean_and_fix_log(errs, logfile, sub_dir=None, script_base_name=None):
 	os.rename(tmp, logfile)
 
 def find_baseinput(ar1, mut_base_pairs):
+	if argtracer.base_ast is None:
+		if os.path.exists(ar1[:-3]+"_def.py"):
+			raise SystemExit("Found file:'" + ar1[:-3]+"_def.py" + "' Please rename/remove this before running check_results to avoid clashes.")
+		argtracer.compute_base_ast(ar1, ar1[:-3]+"_def.py")
 	basein = None
 	ln_cond = -1
 	for cand in mut_base_pairs:
@@ -83,6 +92,9 @@ def find_baseinput(ar1, mut_base_pairs):
 				basein = cand[1]
 		except:
 			pass
+
+	if os.path.exists(ar1[:-3]+"_def.py"):
+		os.remove(ar1[:-3]+"_def.py")
 
 	return basein
 
