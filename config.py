@@ -26,7 +26,7 @@ def get_default_config(conf_path=None):
 		"default_mut_dir" : "mutants/",
 		# The timeout from the actual script execution is calcualted as int(multi*(slowest seen execution)) + 1. Multi can be adjusted here (default is 2).
 		"timeout_slow_multi" : "2",
-		# Remove potentially invalid scripts after checking?
+		# Remove potentially invalid scripts after checking? Only applies when running check_results directly.
 		"default_clean_invalid" : "False",
 		# Percentage of elements in a condition that may be mutated. Setting this to 0 will still allow 1 mutation per condition.
 		"cond_mut_limit" : "1.0",
