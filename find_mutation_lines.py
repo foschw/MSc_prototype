@@ -511,6 +511,22 @@ def main(argv, seed=None):
 
     if err:
     	raise SystemExit("Exiting: " + pick_file + " contains no valid inputs for " + ar1)
+
+    # Remove duplicates (same condition trace) from valid inputs
+    idxl = 0
+    idxr = 0
+    while idxl < len(base_conds):
+        idxr = idxl+1
+        while idxr < len(base_conds):
+            (pmy, sdy) = get_left_diff(deepcopy(base_conds[idxl]),base_conds[idxr])
+            if len(pmy) == 0 and len(sdy) == 0:
+                del base_conds[idxr]
+            else:
+                idxr += 1
+        idxl += 1
+
+    print("Amount of unique base strings:", len(base_conds), flush=True)
+
     print("Used baseinput:", repr(basein))
 
     # Run the mutation process for every rejected string
@@ -550,11 +566,16 @@ def main(argv, seed=None):
             	continue
 
             if b_cdict is None:
+                b_cdict = []
                 for cond_cand in base_conds:
                     (prim, _) = get_left_diff(deepcopy(cdict), cond_cand)
                     if len(prim) > blen:
                         blen = len(prim)
-                        b_cdict = cond_cand
+                        b_cdict = [cond_cand]
+                    elif len(prim) == blen:
+                        b_cdict.append(cond_cand)
+                print("BCdict amount:", len(b_cdict), flush=True)
+                b_cdict = random.choice(b_cdict)
 
             # Remove lines used to construct custom exceptions
             lines = manual_errs.remove_custom_lines(lines)
@@ -624,6 +645,7 @@ def main(argv, seed=None):
 
             if berr:
                 print("Mutation complete:", arg, "(base rejected)", flush=True)
+                print("Exception for base on", arg, ":", berr, "(lines:", repr(lines) + ")", flush=True)
                 mutants_with_cause.append((arg, "valid string rejected"))
 
             # Check whether the modification changed the condition state
