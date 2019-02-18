@@ -410,13 +410,13 @@ def get_possible_fixes(delta, file):
         for (lineno, state) in prim:
         	fix_list = make_new_conditions(lineno,file)
         	if fix_list:
-        	    fixmap.append((fix_list, lineno, None))
+        	    fixmap.append((fix_list, lineno, state, None))
     # Otherwise test all remaining candidates
     elif sec:
         for (lineno, state) in sec:
         	fix_list = make_new_conditions(lineno,file)
         	if fix_list:
-        	    fixmap.append((fix_list, lineno, state))
+        	    fixmap.append((fix_list, lineno, None, state))
     # Returns a list of ([possible fixes for a line], line number, pre-modification condition value)
     return fixmap
 
@@ -532,14 +532,14 @@ def main(argv, seed=None):
     # Run the mutation process for every rejected string
     for s in rej_strs:
         s = s[0]
-        queue = [(ar1, [], 0, None, None)]
+        queue = [(ar1, [], 0, None, None, None)]
         discarded = set()
         # Save which exception the first execution of the rejected string produced
         original_ex_str = None
         b_cdict = None if current_config["variable_base"] == "True" else b_cdict
-        blen = -1
+        #blen = -1
         while queue:
-            (arg, history, retries, pidx, scstate) = queue.pop(0)
+            (arg, history, retries, pidx, pmstate, scstate) = queue.pop(0)
             print("Current script:", arg, flush=True)
             # Check whether the chosen correct string is now rejected
             try:
@@ -550,9 +550,18 @@ def main(argv, seed=None):
                 continue
             print("Executing basestring...", flush=True)
             try:
-                (_, _, _, berr) = argtracer.trace(arg, basein, timeout=timeout)
+                (lines, _, _, berr) = argtracer.trace(arg, basein, timeout=timeout)
             except argtracer.Timeout:
                 print("Discarding:", arg, "(basestring timed out)", flush=True)
+                discarded.add(arg)
+                continue
+
+            # Remove lines used to construct custom exceptions
+            lines = manual_errs.remove_custom_lines(lines)
+
+            # If the crash happens on a condition we modified there is a high chance it's invalid, so we remove it.
+            if lines[0] in history:
+                print("Removed:", arg, "(potentially corrupted condition)", flush=True)
                 discarded.add(arg)
                 continue
 
@@ -564,18 +573,6 @@ def main(argv, seed=None):
             	print("Tracer timed out on mutated string", flush=True)
             	discarded.add(arg)
             	continue
-
-            if b_cdict is None:
-                b_cdict = []
-                for cond_cand in base_conds:
-                    (prim, _) = get_left_diff(deepcopy(cdict), cond_cand)
-                    if len(prim) > blen:
-                        blen = len(prim)
-                        b_cdict = [cond_cand]
-                    elif len(prim) == blen:
-                        b_cdict.append(cond_cand)
-                print("BCdict amount:", len(b_cdict), flush=True)
-                b_cdict = random.choice(b_cdict)
 
             # Remove lines used to construct custom exceptions
             lines = manual_errs.remove_custom_lines(lines)
@@ -592,15 +589,8 @@ def main(argv, seed=None):
                 else:
                     original_ex_str = str(err.__class__)
 
-            (prim, sec) = get_left_diff(cdict, b_cdict)
-            prmry = []
-            # If the mutation in the last step was not useful we discard it
-            skip = False
-            for e in prim:
-                if len(history) > 0 and e[0] == history[-1]:
-                    skip = True
-                elif e[0] not in history and e[0] in lines:
-                    prmry.append(e)
+            # Check whether the modification changed the condition state
+            skip = (pmstate is not None and cdict.get(history[-1]) is not None and cdict.get(history[-1]) == pmstate)
 
             if skip:
                 print("Removed:", arg, "(unsuccessful modification)", flush=True)
@@ -622,21 +612,14 @@ def main(argv, seed=None):
                         fix = fix + "\n"
                         mods = { history[-1] : fix }
                         cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
-                        queue.append((cand, history.copy(), retries+1, pidx, None))
+                        queue.append((cand, history.copy(), retries+1, pidx, pstate, None))
                         file_copy_replace(cand, arg, mods)
                         mut_cnt += 1
                 elif retries >= int(current_config["mut_retries"]):
                     print("Retries exceeded:", arg, flush=True)
                 continue
 
-            sskip = False
-            scndry = []
-            for e in sec:
-                if e[0] in lines:
-                    if scstate is not None and e[0] == history[-1] and e[1] == scstate:
-                        sskip = True
-                    elif e[0] not in history:
-                        scndry.append(e)
+            sskip = (scstate is not None and cdict.get(history[-1]) is not None and cdict.get(history[-1]) == scstate)
             # Retries would be possible here as well, but since our search is blind for these conditions it's skipped for now
             if sskip:
                 print("Removed:", arg, "(unsuccessful modification)", flush=True)
@@ -645,13 +628,25 @@ def main(argv, seed=None):
 
             if berr:
                 print("Mutation complete:", arg, "(base rejected)", flush=True)
-                print("Exception for base on", arg, ":", berr, "(lines:", repr(lines) + ")", flush=True)
+                print("Exception for base on", arg, ":", repr(berr), flush=True)
                 mutants_with_cause.append((arg, "valid string rejected"))
 
-            # Check whether the modification changed the condition state
+            if current_config["variable_base"] == "True":
+                b_cdict = []
+                blen = -1
+                for cond_cand in base_conds:
+                    (prim, _) = get_left_diff(deepcopy(cdict), cond_cand)
+                    if len(prim) > blen:
+                        blen = len(prim)
+                        b_cdict = [cond_cand]
+                    elif len(prim) == blen:
+                        b_cdict.append(cond_cand)
+                print("Similar bases:", len(b_cdict), flush=True)
+                b_cdict = random.choice(b_cdict)
 
-            prim = prmry
-            sec = scndry
+            (prim, sec) = get_left_diff(cdict, b_cdict)
+            prim = [e for e in prim if e[0] not in history and e[0] in lines]
+            sec = [e for e in sec if e[0] not in history and e[0] in lines]
             print("Used string:", repr(s), flush=True)
             print("Queue lenght:", len(queue), flush=True)
             print("Change history:", history, flush=True)
@@ -670,14 +665,14 @@ def main(argv, seed=None):
                 	discarded.add(arg)
                 all_fixes = get_possible_fixes((prim, sec), arg)
                 if all_fixes:
-                    for (fix_list, fix_line, cstate) in all_fixes:
+                    for (fix_list, fix_line, pstate, sstate) in all_fixes:
                         # Create a mutant for every possible fix
                         for (fix, permindex) in fix_list:
                             if not fix.endswith("\n"):
                                 fix = fix + "\n"
                             cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
                             mods = { fix_line : fix }
-                            queue.append((cand, history.copy()+[fix_line],0, permindex, cstate))
+                            queue.append((cand, history.copy()+[fix_line],0, permindex, pstate, sstate))
                             file_copy_replace(cand, arg, mods)
                             mut_cnt += 1
             # Stop the mutation when the originally rejected string is accepted
