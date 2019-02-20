@@ -32,7 +32,9 @@ def get_default_config(conf_path=None):
 		"cond_mut_limit" : "1.0",
 		# Number of retries for mutating a condition
 		"mut_retries" : "10",
-		# Indicates whether the mutation algorithm should always use the most complex string or choose from the pool
-		"variable_base" : "True",
+		# Indicates whether the mutation algorithm should: always use the most complex string ("0"), choose a random one for each new string ("1") or in each step ("2")
+		"variable_base" : "1",
+		# Set to False to disallow blind modifications whenever there are no guided ones. This reduces the required time and space (drive and memory) significantly, but the results may be worse.
+		"blind_continue" : "True",
 		}
 		return DEFAULT_CONFIG
