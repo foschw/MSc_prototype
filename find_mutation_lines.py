@@ -16,7 +16,6 @@ import ast
 import astunparse
 from math import floor
 import functools
-from copy import deepcopy
 
 current_config = None
 
@@ -324,17 +323,18 @@ def get_left_diff(d1, d2):
         if s2:
             if len(s1) == 2 and len(s2) == 1:
                 prim.append((e, s1.difference(s2).pop()))
+
             elif len(s1) == 1 and len(s2) == 1 and len(s1.intersection(s2)) == 0:
-                prim.append((e, s1.pop()))
+                ele = s1.pop()
+                s1.add(ele)
+                prim.append((e, ele))
                 
         elif len(s1) == 1:
-            sec.append((e,s1.pop()))
+            ele = s1.pop()
+            s1.add(ele)
+            sec.append((e,ele))
 
     return (prim, sec)
-
-# Sanitizes an input string. Introduced for ease of modification.
-def sanitize(valuestring):
-    return repr(valuestring)
 
 # Creates all possible conditions that may adjust the path of the mutated string to be like the original string
 # Parameters:
@@ -518,7 +518,7 @@ def main(argv, seed=None):
     while idxl < len(base_conds):
         idxr = idxl+1
         while idxr < len(base_conds):
-            (pmy, sdy) = get_left_diff(deepcopy(base_conds[idxl]),base_conds[idxr])
+            (pmy, sdy) = get_left_diff(base_conds[idxl],base_conds[idxr])
             if len(pmy) == 0 and len(sdy) == 0:
                 del base_conds[idxr]
             else:
@@ -529,6 +529,8 @@ def main(argv, seed=None):
 
     print("Used baseinput:", repr(basein))
 
+    all_generated = []
+
     # Run the mutation process for every rejected string
     for s in rej_strs:
         s = s[0]
@@ -536,8 +538,7 @@ def main(argv, seed=None):
         discarded = set()
         # Save which exception the first execution of the rejected string produced
         original_ex_str = None
-        b_cdict = None if current_config["variable_base"] == "True" else b_cdict
-        #blen = -1
+        b_cdict = None if int(current_config["variable_base"]) > 0 else b_cdict
         while queue:
             (arg, history, retries, pidx, pmstate, scstate) = queue.pop(0)
             print("Current script:", arg, flush=True)
@@ -546,14 +547,14 @@ def main(argv, seed=None):
                 _mod = imp.load_source('mymod', arg)
             except:
                 print("Discarded script:", arg, "(import error)", flush=True)
-                discarded.add(arg)
+                os.remove(arg)
                 continue
             print("Executing basestring...", flush=True)
             try:
                 (lines, _, _, berr) = argtracer.trace(arg, basein, timeout=timeout)
             except argtracer.Timeout:
                 print("Discarding:", arg, "(basestring timed out)", flush=True)
-                discarded.add(arg)
+                os.remove(arg)
                 continue
 
             # Remove lines used to construct custom exceptions
@@ -562,7 +563,7 @@ def main(argv, seed=None):
             # If the crash happens on a condition we modified there is a high chance it's invalid, so we remove it.
             if lines[0] in history:
                 print("Removed:", arg, "(potentially corrupted condition)", flush=True)
-                discarded.add(arg)
+                os.remove(arg)
                 continue
 
             # Mutation guided by rejected strings
@@ -571,7 +572,7 @@ def main(argv, seed=None):
                 (lines, cdict, _, err) = argtracer.trace(arg, s, timeout=timeout)
             except:
             	print("Tracer timed out on mutated string", flush=True)
-            	discarded.add(arg)
+            	os.remove(arg)
             	continue
 
             # Remove lines used to construct custom exceptions
@@ -579,7 +580,7 @@ def main(argv, seed=None):
             # If the crash happens on a condition we modified there is a high chance it's invalid, so we remove it.
             if lines[0] in history:
                 print("Removed:", arg, "(potentially corrupted condition)", flush=True)
-                discarded.add(arg)
+                os.remove(arg)
                 continue
 
             if original_ex_str is None:
@@ -594,7 +595,6 @@ def main(argv, seed=None):
 
             if skip:
                 print("Removed:", arg, "(unsuccessful modification)", flush=True)
-                discarded.add(arg)
                 if retries < int(current_config["mut_retries"]) and pidx:
                     # Try again
                     full_str = manual_errs.get_if_from_line(history[-1], arg)
@@ -617,13 +617,14 @@ def main(argv, seed=None):
                         mut_cnt += 1
                 elif retries >= int(current_config["mut_retries"]):
                     print("Retries exceeded:", arg, flush=True)
+                os.remove(arg)
                 continue
 
             sskip = (scstate is not None and cdict.get(history[-1]) is not None and cdict.get(history[-1]) == scstate)
             # Retries would be possible here as well, but since our search is blind for these conditions it's skipped for now
             if sskip:
                 print("Removed:", arg, "(unsuccessful modification)", flush=True)
-                discarded.add(arg)
+                os.remove(arg)
                 continue
 
             if berr:
@@ -631,11 +632,13 @@ def main(argv, seed=None):
                 print("Exception for base on", arg, ":", repr(berr), flush=True)
                 mutants_with_cause.append((arg, "valid string rejected"))
 
-            if current_config["variable_base"] == "True":
+            # Choose a string to compare the trace to
+            if b_cdict is None or int(current_config["variable_base"]) > 1:
                 b_cdict = []
                 blen = -1
+                # Randomly choose from all strings that have a maximum length primary difference
                 for cond_cand in base_conds:
-                    (prim, _) = get_left_diff(deepcopy(cdict), cond_cand)
+                    (prim, _) = get_left_diff(cdict, cond_cand)
                     if len(prim) > blen:
                         blen = len(prim)
                         b_cdict = [cond_cand]
@@ -646,7 +649,25 @@ def main(argv, seed=None):
 
             (prim, sec) = get_left_diff(cdict, b_cdict)
             prim = [e for e in prim if e[0] not in history and e[0] in lines]
-            sec = [e for e in sec if e[0] not in history and e[0] in lines]
+            sec = [e for e in sec if e[0] not in history and e[0] in lines] if current_config["blind_continue"] == "True" else []
+            # Don't create mutants if their line combination is already in the queue
+            if prim or sec:
+                for prsec in (prim, sec):
+                    if prsec:
+                        primindex = 0
+                        while primindex < len(prsec):
+                            mut_set = set(history + [prsec[primindex][0]])
+                            dup_found = False
+                            for his in all_generated:
+                                if set(his).issuperset(mut_set):
+                                    print("Pruned generation for line:", prsec[primindex][0],"(already in queue)",flush=True)
+                                    del prsec[primindex]
+                                    dup_found = True
+                                    break
+                            if not dup_found:
+                                all_generated.append(history.copy() + [prsec[primindex][0]])
+                                primindex += 1
+
             print("Used string:", repr(s), flush=True)
             print("Queue lenght:", len(queue), flush=True)
             print("Change history:", history, flush=True)
@@ -666,6 +687,7 @@ def main(argv, seed=None):
                 all_fixes = get_possible_fixes((prim, sec), arg)
                 if all_fixes:
                     for (fix_list, fix_line, pstate, sstate) in all_fixes:
+                        # Check whether this combination is already part of the queue
                         # Create a mutant for every possible fix
                         for (fix, permindex) in fix_list:
                             if not fix.endswith("\n"):
