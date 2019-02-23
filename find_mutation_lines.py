@@ -439,6 +439,25 @@ def cleanup(mut_dir):
         if re_mutant.search(fl):
             os.remove(fl)
 
+# Removes elements that would create duplicates from prim or sec
+def rm_dups(prsec, history, hrecord):
+    if prsec:
+        primindex = 0
+        while primindex < len(prsec):
+            mut_set = frozenset(history + [prsec[primindex][0]])
+            mut_hash = hash(mut_set)
+            dup_found = False
+            for his in hrecord:
+                if frozenset(his) == mut_set:
+                    del prsec[primindex]
+                    dup_found = True
+                    break
+            if not dup_found:
+                hrecord.append(history.copy() + [prsec[primindex][0]])
+                primindex += 1
+
+    return prsec
+
 def main(argv, seed=None):
     random.seed(seed)
     global current_config
@@ -650,23 +669,15 @@ def main(argv, seed=None):
             (prim, sec) = get_left_diff(cdict, b_cdict)
             prim = [e for e in prim if e[0] not in history and e[0] in lines]
             sec = [e for e in sec if e[0] not in history and e[0] in lines] if current_config["blind_continue"] == "True" else []
+           
             # Don't create mutants if their line combination is already in the queue
-            if prim or sec:
-                for prsec in (prim, sec):
-                    if prsec:
-                        primindex = 0
-                        while primindex < len(prsec):
-                            mut_set = set(history + [prsec[primindex][0]])
-                            dup_found = False
-                            for his in all_generated:
-                                if set(his).issuperset(mut_set):
-                                    print("Pruned generation for line:", prsec[primindex][0],"(already in queue)",flush=True)
-                                    del prsec[primindex]
-                                    dup_found = True
-                                    break
-                            if not dup_found:
-                                all_generated.append(history.copy() + [prsec[primindex][0]])
-                                primindex += 1
+            l0prim = 0 
+            if prim:
+                l0prim = len(prim)
+                prim = rm_dups(prim, history, all_generated)
+
+            # If primary choices were avilable and got removed sec can be removed as well
+            sec = [] if not sec or l0prim > 0 or len(prim) > 0 else rm_dups(sec, history, all_generated)
 
             print("Used string:", repr(s), flush=True)
             print("Queue lenght:", len(queue), flush=True)
@@ -687,7 +698,6 @@ def main(argv, seed=None):
                 all_fixes = get_possible_fixes((prim, sec), arg)
                 if all_fixes:
                     for (fix_list, fix_line, pstate, sstate) in all_fixes:
-                        # Check whether this combination is already part of the queue
                         # Create a mutant for every possible fix
                         for (fix, permindex) in fix_list:
                             if not fix.endswith("\n"):
@@ -729,9 +739,10 @@ def main(argv, seed=None):
             file.write(repr(e) + "\n")
 
 @functools.lru_cache(maxsize=None)
-def read_file_cached(filename):
+def read_file_hashed(filename):
     with open(filename, "r", encoding="UTF-8") as fli:
-        return fli.read()
+        res = fli.read()
+        return (res,hash(res))
 
 def remove_duplicates(fdir, ext, pairlst):
     print("Removing duplicates...", flush=True)
@@ -752,10 +763,11 @@ def remove_duplicates(fdir, ext, pairlst):
 
     for idx1 in range(len(files)):
         fl1 = files[idx1]
-        s1 = read_file_cached(fl1)
+        s1 = read_file_hashed(fl1)
         for idx2 in range(idx1+1,len(files)):
             fl2 = files[idx2]
-            if s1 == read_file_cached(fl2):
+            s2 = read_file_hashed(fl2)
+            if s1[1] == s2[1] and s1[0] == s2[0]:
                 dups.append((fl1, fl2))
             prog += 1
             cprog = (prog/cmps)*100

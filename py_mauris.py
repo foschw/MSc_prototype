@@ -9,6 +9,7 @@ from run_unittests import main as run_tests
 from config import get_default_config
 from tidydir import TidyDir as TidyDir
 from rewrite_ast import rewrite_in as rewrite_ast
+import datetime
 
 current_config = None
 
@@ -32,7 +33,7 @@ def main(argv):
     # Otherwise use the given inputs
     else:
         print("Using inputs from:", binfile, flush=True)
-    print("Starting mutation...", prog, flush=True)
+    print("Starting mutation...", prog, "(Timestamp: '" + str(datetime.datetime.now()) + "')", flush=True)
     # Run the mutation algorithm
     mutate([None, prog, binfile, timeout], seed)
     # Check whether the results are fine and remove potentially problematic scripts
@@ -42,7 +43,7 @@ def main(argv):
     print("Running unittests...", flush=True)
     run_tests([None, prog])
     print()
-    print("Done.")
+    print("Done.", "(Timestamp: '" + str(datetime.datetime.now()) + "')", flush=True)
 
 if __name__ == "__main__":
     print('The arguments are: "program path" [, -b "binary input file", -t "time for generation (in s)", -l "timeout for mutant execution" (in s), -d "directory to use as base"]', flush=True)

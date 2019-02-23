@@ -21,7 +21,7 @@ def execute_script_with_argument(script, argument):
 	except subprocess.TimeoutExpired:
 		proc.kill()
 		proc.communicate()
-		print("Warning:", script, "timed out.")
+		print("Warning:", script, "timed out.", flush=True)
 		return "-1"
 	except:
 		return "-1"
