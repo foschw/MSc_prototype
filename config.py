@@ -27,14 +27,14 @@ def get_default_config(conf_path=None):
 		# The timeout from the actual script execution is calcualted as int(multi*(slowest seen execution)) + 1. Multi can be adjusted here (default is 2).
 		"timeout_slow_multi" : "2",
 		# Remove potentially invalid scripts after checking? Only applies when running check_results directly.
-		"default_clean_invalid" : "False",
+		"default_clean_invalid" : "0",
 		# Percentage of elements in a condition that may be mutated. Setting this to 0 will still allow 1 mutation per condition.
 		"cond_mut_limit" : "1.0",
 		# Number of retries for mutating a condition
 		"mut_retries" : "10",
-		# Indicates whether the mutation algorithm should: always use the most complex string ("0"), choose a random one for each new string ("1") or in each step ("2")
+		# Indicates whether the mutation algorithm should: always use the most complex string ("0"), or use a combination of all ("1")
 		"variable_base" : "1",
-		# Set to False to disallow blind modifications whenever there are no guided ones. This reduces the required time and space (drive and memory) significantly, but the results may be worse.
-		"blind_continue" : "True",
+		# Set to 0 to disallow blind modifications whenever there are no guided ones. This reduces the required time and space (drive and memory) significantly, but the results may be worse.
+		"blind_continue" : "1",
 		}
 		return DEFAULT_CONFIG

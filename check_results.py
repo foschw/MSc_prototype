@@ -118,7 +118,7 @@ def main(argv):
 		scriptname = scriptname[scriptname.rfind("/")+1:]
 	cause_file = str(TidyDir(current_config["default_mut_dir"])) + scriptname + ".log"
 	inputs_file = current_config["default_rejected"] if len(argv) < 3 else argv[2]
-	clean_invalid = eval(current_config["default_clean_invalid"]) if len(argv) < 4 else argv[3]
+	clean_invalid = int(current_config["default_clean_invalid"]) if len(argv) < 4 else argv[3]
 	all_inputs = []
 	all_mutants = []
 	behave = {}
