@@ -4,7 +4,7 @@ def get_default_config(conf_path=None):
 	    with open(conf_path, "r", encoding="UTF-8") as conf:
 	        return eval(conf.read())
 	else:
-		# This dict contains the standard config of MAURIS, i.e. every tuneable variable
+		# This dict contains the standard config of MAURIS, i.e. every tunable variable
 		# All mappings are string -> string
 		DEFAULT_CONFIG = {
 		# The minimal timeout for each script execution in s
@@ -24,7 +24,7 @@ def get_default_config(conf_path=None):
 		#"trace_type" : "taintedstr.tstr('')",
 		# Default folder where mutation results are stored. There may be a fair bit of stress put on the drive.
 		"default_mut_dir" : "mutants/",
-		# The timeout from the actual script execution is calcualted as int(multi*(slowest seen execution)) + 1. Multi can be adjusted here (default is 2).
+		# The timeout from the actual script execution is calculated as int(multi*(slowest seen execution)) + 1. Multi can be adjusted here (default is 2).
 		"timeout_slow_multi" : "2",
 		# Remove potentially invalid scripts after checking? Only applies when running check_results directly.
 		"default_clean_invalid" : "0",
