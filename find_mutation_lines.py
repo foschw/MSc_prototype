@@ -129,6 +129,7 @@ class MutTransformer(ast.NodeTransformer):
         self.idx += 1
         if self.target[self.idx-1] == "1":
             rn = tree_node.n
+            # Choose a random number between -|n|-1 and |n|+1. This may introduce a new ast element (unary minus)
             while rn == tree_node.n:
                 rn = random.randint(-abs(tree_node.n)-1,abs(tree_node.n)+1)
             tree_node.n = rn
@@ -439,7 +440,7 @@ def cleanup(mut_dir):
         if re_mutant.search(fl):
             os.remove(fl)
 
-# Removes elements that would create duplicates from prim or sec
+# Removes elements that would create duplicates from prim or sec and updates hrecord if necessary
 def rm_dups(prsec, history, hrecord):
     if prsec:
         primindex = 0
@@ -521,7 +522,7 @@ def main(argv, seed=None):
                 if time_elapsed > slowest_run:
                     slowest_run = time_elapsed
                 progress += 1
-
+    # Choose a timeout that is very likely to let valid mutants finish
     timeout = max(timeout, int(int(current_config["timeout_slow_multi"])*slowest_run)+1)
     try:
         (_, b_cdict, _, err) = argtracer.trace(ar1, basein, timeout=timeout)
@@ -640,9 +641,9 @@ def main(argv, seed=None):
                 continue
 
             sskip = (scstate is not None and cdict.get(history[-1]) is not None and cdict.get(history[-1]) == scstate)
-            # Retries would be possible here as well, but since our search is blind for these conditions it's skipped for now
+            # Retries would be possible here as well, but since our search is blind for these conditions it's skipped
             if sskip:
-                print("Removed:", arg, "(unsuccessful modification)", flush=True)
+                print("Removed:", arg, "(unsuccessful modification) (sec)", flush=True)
                 os.remove(arg)
                 continue
 
@@ -651,33 +652,47 @@ def main(argv, seed=None):
                 print("Exception for base on", arg, ":", repr(berr), flush=True)
                 mutants_with_cause.append((arg, "valid string rejected"))
 
-            # Choose a string to compare the trace to
-            if b_cdict is None or int(current_config["variable_base"]) > 1:
-                b_cdict = []
-                blen = -1
-                # Randomly choose from all strings that have a maximum length primary difference
+            (prim, sec) = (None, None)
+            # Create a union of deltas for all base strings
+            if int(current_config["variable_base"]) > 0:
+                all_prim = []
+                all_sec = []
+                # Unify traces of all unique bases
                 for cond_cand in base_conds:
-                    (prim, _) = get_left_diff(cdict, cond_cand)
-                    if len(prim) > blen:
-                        blen = len(prim)
-                        b_cdict = [cond_cand]
-                    elif len(prim) == blen:
-                        b_cdict.append(cond_cand)
-                print("Similar bases:", len(b_cdict), flush=True)
-                b_cdict = random.choice(b_cdict)
+                    (prim, sec) = get_left_diff(cdict, cond_cand)
+                    all_prim.append(prim)
+                    all_sec.append(sec)
 
-            (prim, sec) = get_left_diff(cdict, b_cdict)
+                primset = set()
+                secset = set()
+                # Create a union of all prim lists
+                for prim_lst in all_prim:
+                    for prim_ele in prim_lst:
+                        primset.add(prim_ele)
+
+                prim = [e for e in primset]
+
+                # Use the intersection of all sec to eliminate some unlikely candidates
+                for sec_lst in all_sec:
+                    secset = set(sec_lst) if not secset else secset.intersection(set(sec_lst))
+
+                # Elements that are already in prim must not be in sec
+                secset = secset.difference(primset)
+
+                sec = [e for e in secset]
+
+            # When using single base just do one diff
+            if prim is None and sec is None:
+                (prim, sec) = get_left_diff(cdict, b_cdict)
+            # Remove all elements that have been explored (history) or do not belong to the actual code (i.e. error constructor - lines)
             prim = [e for e in prim if e[0] not in history and e[0] in lines]
-            sec = [e for e in sec if e[0] not in history and e[0] in lines] if current_config["blind_continue"] == "True" else []
+            sec = [e for e in sec if e[0] not in history and e[0] in lines] if int(current_config["blind_continue"]) else []
            
             # Don't create mutants if their line combination is already in the queue
-            l0prim = 0 
-            if prim:
-                l0prim = len(prim)
-                prim = rm_dups(prim, history, all_generated)
+            prim = [] if not prim else rm_dups(prim, history, all_generated)
 
-            # If primary choices were avilable and got removed sec can be removed as well
-            sec = [] if not sec or l0prim > 0 or len(prim) > 0 else rm_dups(sec, history, all_generated)
+            # Sec will never be progressed if prim is not empty
+            sec = [] if not sec or len(prim) > 0 else rm_dups(sec, history, all_generated)
 
             print("Used string:", repr(s), flush=True)
             print("Queue lenght:", len(queue), flush=True)
@@ -738,12 +753,15 @@ def main(argv, seed=None):
         for e in mutants_with_cause:
             file.write(repr(e) + "\n")
 
+# Reads a file and returns both its content and the content's hash using a cache. Used for finding straight duplicate mutant files.
 @functools.lru_cache(maxsize=None)
 def read_file_hashed(filename):
     with open(filename, "r", encoding="UTF-8") as fli:
         res = fli.read()
         return (res,hash(res))
 
+# Simple duplicate removal method - given a file directory (mutation results), a file extension (.py) as well as the list of mutant, cause pairs
+# Removes all duplicates (i.e. same content) from both the file-system and the list of pairs
 def remove_duplicates(fdir, ext, pairlst):
     print("Removing duplicates...", flush=True)
     ext = ext if not ext.startswith(".") else ext[1:]
@@ -773,7 +791,7 @@ def remove_duplicates(fdir, ext, pairlst):
             cprog = (prog/cmps)*100
             if cprog > lstep:
                 lstep += 1
-                print("Progess:", int(cprog), "%", flush=True)
+                print("Progress:", int(cprog), "%", flush=True)
 
     for (a, b) in dups:
         if os.path.exists(a) and os.path.exists(b):
