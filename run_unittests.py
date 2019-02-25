@@ -5,6 +5,7 @@ import re
 import os
 from config import get_default_config
 from tidydir import TidyDir as TidyDir
+import threading
 
 current_config = None
 
@@ -45,6 +46,14 @@ def extract_test_stats(unittest_output):
 				num_fail += int(ob[1:])
 	return (total_tests-num_fail,num_fail)
 
+class PyTestThread(threading.Thread):
+	def __init__(self, script):
+		super().__init__()
+		self.script = script
+
+	def run(self):
+		self.res = run_unittests_for_script(self.script)
+
 def main(argv):
 	global current_config
 	current_config = get_default_config()
@@ -62,6 +71,7 @@ def main(argv):
 	scripts_f = []
 	scripts_p = []
 	targets = []
+	num_workers = int(current_config["test_threads"])
 
 	with open(behave_file, "r", encoding="UTF-8") as bf: 
 		for _,line in enumerate(bf):
@@ -71,16 +81,38 @@ def main(argv):
 					targets.append(mtnt)
 			except:
 				continue
-	cnt = 1
-	for f in targets:
-		print("Running tests for:", f, "(" + str(cnt) + "/" + str(len(targets)) + ")", flush=True)
-		cnt += 1
-		(tpass,tfail) = run_unittests_for_script(f)
-		if tfail == 0:
-			if tpass > 0:
-				scripts_p.append((f,(tpass,tfail)))
+
+	workers_done = False
+	worker_threads = []
+	tidx = 0
+	while not workers_done:
+		# Spawn more threads if there are free spots
+		if len(worker_threads) < num_workers and tidx < len(targets):
+			for widx in range(tidx,tidx+min(num_workers,len(targets)-tidx)):
+				new_worker = PyTestThread(targets[tidx])
+				new_worker.start()
+				worker_threads.append(new_worker)
+				print("Running tests for:", targets[tidx], "(" + str(tidx+1) + "/" + str(len(targets)) + ")", flush=True)
+				tidx += 1
+		# Check whether threads are done and poll their results
 		else:
-			scripts_f.append((f,(tpass,tfail)))
+			work_idx = 0
+			while work_idx < len(worker_threads):
+				current_worker = worker_threads[work_idx]
+				current_worker.join(0.01)
+				if not current_worker.is_alive():
+					del worker_threads[work_idx]
+					(tpass,tfail) = current_worker.res
+					if tfail == 0:
+						if tpass > 0:
+							scripts_p.append((current_worker.script,(tpass,tfail)))
+					else:
+						scripts_f.append((current_worker.script,(tpass,tfail)))
+				else:
+					work_idx += 1
+
+		if tidx >= len(targets) and len(worker_threads) == 0:
+			workers_done = True
 
 	# Write the test stats to a file. Mutants that fail no tests are at the top if they exist.
 	with open(test_res_fl, "w", encoding="UTF-8") as dest:

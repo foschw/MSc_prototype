@@ -172,7 +172,6 @@ def main(argv):
 	cnt = 1
 	# Layout all detected behaviour linearly, each index triplet contains observed results of a mutated file
 	mut_behaves = [0 for _ in range(3*len(all_mutants))]
-	threads_alive = 0
 	thread_args = []
 	for i in range(len(all_mutants)):
 		my_mutant = all_mutants[i]
