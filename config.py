@@ -19,11 +19,11 @@ def get_default_config(conf_path=None):
 		"default_rejected" : "rejected.bin",
 		# Maximum attempts of how often a valid string gets mutated to get an invalid string
 		"max_mut_attempts" : "10000",
-		# The type of arguments to trace. taintedstr.tstr is recommended for accuracy, using str may help compatibility.
+		# The type of arguments used by the tracer. Using str is recommended.
 		"trace_type" : "''",
 		#"trace_type" : "taintedstr.tstr('')",
 		# Default folder where mutation results are stored. There may be a fair bit of stress put on the drive.
-		"default_mut_dir" : "mutants/",
+		"default_mut_dir" : "M:/mutants/",
 		# The timeout from the actual script execution is calculated as int(multi*(slowest seen execution)) + 1. Multi can be adjusted here (default is 2).
 		"timeout_slow_multi" : "2",
 		# Remove potentially invalid scripts after checking? Only applies when running check_results directly.
@@ -36,5 +36,8 @@ def get_default_config(conf_path=None):
 		"variable_base" : "1",
 		# Set to 0 to disallow blind modifications whenever there are no guided ones. This reduces the required time and space (drive and memory) significantly, but the results may be worse.
 		"blind_continue" : "1",
+		# Amount of threads that the test tools (check_results and run_unittests) should use
+		"test_threads" : "32"
+		,
 		}
 		return DEFAULT_CONFIG

@@ -8,11 +8,12 @@ from config import get_default_config
 from tidydir import TidyDir as TidyDir
 import shutil
 import argtracer
+import threading
 
 current_config = None
 
 # Executes a .py file with a string argument.
-# Returns the exception in case one occured, "-1" if the execution failed and None otherwise.
+# Returns the exception in case one occurred, "-1" if the execution failed and None otherwise.
 def execute_script_with_argument(script, argument):
 	cmd = ["python", script, argument]
 	try:
@@ -46,6 +47,17 @@ def extract_error_name(stderr_string):
 
 	return exc_name
 
+# Use threads as parallel execution of scripts can independent
+class PyExecutionThread(threading.Thread):
+	def __init__(self, i1, i2, file, input):
+		super().__init__()
+		self.i1 = i1
+		self.i2 = i2
+		self.file = file
+		self.input = input
+
+	def run(self):
+		self.exc = execute_script_with_argument(self.file, self.input)
 
 # Removes potentially invalid mutants based on the error list and fixes the log accordingly
 def clean_and_fix_log(errs, logfile, sub_dir=None, script_base_name=None):
@@ -103,7 +115,7 @@ def main(argv):
 	global current_config
 	current_config = get_default_config()
 	# Specify the original name of the script to check the results. 
-	# Uses the second argument as binary input file, or the config value in case it is ommitted.
+	# Uses the second argument as binary input file, or the config value in case it is omitted.
 	# The optional third argument controls whether the unverifiable scripts are to be removed.
 	if len(argv) < 2:
 		raise SystemExit("Please specify the script name!")
@@ -123,6 +135,7 @@ def main(argv):
 	all_mutants = []
 	behave = {}
 	mutant_to_cause = {}
+	num_workers = int(current_config["test_threads"])
 
 	with open(cause_file, "r", encoding="UTF-8") as causes:
 		for num, line in enumerate(causes):
@@ -157,25 +170,69 @@ def main(argv):
 
 	# Check all mutants for behaviour changes
 	cnt = 1
-	for my_mutant in all_mutants:
-		print("Checking mutant:", my_mutant, "(" + str(cnt) + "/" + str(len(all_mutants)) + ")", flush=True)
-		cnt += 1
+	# Layout all detected behaviour linearly, each index triplet contains observed results of a mutated file
+	mut_behaves = [0 for _ in range(3*len(all_mutants))]
+	threads_alive = 0
+	thread_args = []
+	for i in range(len(all_mutants)):
+		my_mutant = all_mutants[i]
+		# Find the used input
+		my_input = my_mutant[:my_mutant.rfind("_")]
+		my_input = inputs[int(my_input[my_input.rfind("_")+1:])]
 		# Check whether the valid string is rejected
-		exc_mutant_valid = execute_script_with_argument(my_mutant, basein)
+		thread_args.append((i, 0, my_mutant, basein))
+		# Check the output of the original script for the rejected string
+		thread_args.append((i, 1, original_file, my_input))
+		# Check the output of the mutated script for the rejected string
+		thread_args.append((i, 2, my_mutant, my_input))
+
+	# Coordinate threaded execution
+	workers_done = False
+	worker_threads = []
+	tidx = 0
+	while not workers_done:
+		# Spawn more threads if there are free spots
+		if len(worker_threads) < num_workers and tidx < len(thread_args):
+			for widx in range(tidx,tidx+min(num_workers,len(thread_args)-tidx)):
+				t_params = thread_args[widx]
+				new_worker = PyExecutionThread(t_params[0], t_params[1], t_params[2], t_params[3])
+				new_worker.start()
+				worker_threads.append(new_worker)
+				if tidx % 3 == 0:
+					print("Checking mutant:", all_mutants[thread_args[widx][0]], "(" + str(1+thread_args[widx][0]) + "/" + str(len(all_mutants)) + ")", flush=True)
+				tidx += 1
+		# Check whether threads are done and poll their results
+		else:
+			work_idx = 0
+			while work_idx < len(worker_threads):
+				current_worker = worker_threads[work_idx]
+				current_worker.join(0.01)
+				if not current_worker.is_alive():
+					del worker_threads[work_idx]
+					mut_behaves[3*current_worker.i1+current_worker.i2] = current_worker.exc
+				else:
+					work_idx += 1
+
+		if tidx >= len(thread_args) and len(worker_threads) == 0:
+			workers_done = True
+
+	bhindex = 0
+	while bhindex < len(mut_behaves):
+		my_mutant = all_mutants[int(bhindex/3)]
+		exc_mutant_valid = mut_behaves[bhindex]
+		exc_orig_invalid = mut_behaves[bhindex+1]
+		exc_mutant = mut_behaves[bhindex+2]
+		# Organize the observed behaviour of the mutant
 		if exc_mutant_valid and exc_mutant_valid != "-1":
 			bh = behave.get(my_mutant) if behave.get(my_mutant) else []
 			bh.append("valid string rejected")
 			behave[my_mutant] = bh
-		my_input = my_mutant[:my_mutant.rfind("_")]
-		my_input = inputs[int(my_input[my_input.rfind("_")+1:])]
-		# Check the output of the original script for the rejected string
-		exc_orig_invalid = execute_script_with_argument(original_file, my_input)
-		# Check the output of the mutated script for the rejected string
-		exc_mutant = execute_script_with_argument(my_mutant, my_input)
+
 		if not exc_mutant:
 			bh = behave.get(my_mutant) if behave.get(my_mutant) else []
 			bh.append("invalid string accepted")
 			behave[my_mutant] = bh
+
 		elif exc_orig_invalid != exc_mutant and exc_mutant != "-1" and exc_orig_invalid != "-1":
 			bh = behave.get(my_mutant) if behave.get(my_mutant) else []
 			bh.append("invalid string raises new exception")
@@ -191,6 +248,8 @@ def main(argv):
 				er = errs.get(my_mutant) if errs.get(my_mutant) else []
 				er.append("mutated string not accepted")
 				errs[my_mutant] = er
+
+		bhindex += 3
 
 	print()
 	if not errs:
