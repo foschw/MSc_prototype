@@ -23,7 +23,7 @@ def get_default_config(conf_path=None):
 		"trace_type" : "''",
 		#"trace_type" : "taintedstr.tstr('')",
 		# Default folder where mutation results are stored. There may be a fair bit of stress put on the drive.
-		"default_mut_dir" : "M:/mutants/",
+		"default_mut_dir" : "mutants/",
 		# The timeout from the actual script execution is calculated as int(multi*(slowest seen execution)) + 1. Multi can be adjusted here (default is 2).
 		"timeout_slow_multi" : "2",
 		# Remove potentially invalid scripts after checking? Only applies when running check_results directly.
@@ -37,7 +37,7 @@ def get_default_config(conf_path=None):
 		# Set to 0 to disallow blind modifications whenever there are no guided ones. This reduces the required time and space (drive and memory) significantly, but the results may be worse.
 		"blind_continue" : "1",
 		# Amount of threads that the test tools (check_results and run_unittests) should use
-		"test_threads" : "32"
+		"test_threads" : "16"
 		,
 		}
 		return DEFAULT_CONFIG

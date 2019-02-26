@@ -9,6 +9,7 @@ from tidydir import TidyDir as TidyDir
 import shutil
 import argtracer
 import threading
+from multiprocessing import Lock
 
 current_config = None
 
@@ -49,15 +50,17 @@ def extract_error_name(stderr_string):
 
 # Use threads as parallel execution of scripts can independent
 class PyExecutionThread(threading.Thread):
-	def __init__(self, i1, i2, file, input):
+	def __init__(self, i, file, input, arr):
 		super().__init__()
-		self.i1 = i1
-		self.i2 = i2
+		self.i = i
 		self.file = file
 		self.input = input
+		self.arr = arr
 
 	def run(self):
-		self.exc = execute_script_with_argument(self.file, self.input)
+		exc = execute_script_with_argument(self.file, self.input)
+		with arr_lock:
+			self.arr[self.i] = exc
 
 # Removes potentially invalid mutants based on the error list and fixes the log accordingly
 def clean_and_fix_log(errs, logfile, sub_dir=None, script_base_name=None):
@@ -173,21 +176,26 @@ def main(argv):
 	# Layout all detected behaviour linearly, each index triplet contains observed results of a mutated file
 	mut_behaves = [0 for _ in range(3*len(all_mutants))]
 	thread_args = []
-	for i in range(len(all_mutants)):
-		my_mutant = all_mutants[i]
+	i = 0
+	while i < len(mut_behaves):
+		my_mutant = all_mutants[int(i/3)]
 		# Find the used input
 		my_input = my_mutant[:my_mutant.rfind("_")]
 		my_input = inputs[int(my_input[my_input.rfind("_")+1:])]
 		# Check whether the valid string is rejected
-		thread_args.append((i, 0, my_mutant, basein))
+		thread_args.append((i, my_mutant, basein, mut_behaves))
 		# Check the output of the original script for the rejected string
-		thread_args.append((i, 1, original_file, my_input))
+		thread_args.append((i+1, original_file, my_input, mut_behaves))
 		# Check the output of the mutated script for the rejected string
-		thread_args.append((i, 2, my_mutant, my_input))
+		thread_args.append((i+2, my_mutant, my_input, mut_behaves))
+		i += 3
 
 	# Coordinate threaded execution
+	global arr_lock
+	arr_lock = Lock()
 	workers_done = False
 	worker_threads = []
+	rate = 0.1/int(current_config["test_threads"])
 	tidx = 0
 	while not workers_done:
 		# Spawn more threads if there are free spots
@@ -198,17 +206,16 @@ def main(argv):
 				new_worker.start()
 				worker_threads.append(new_worker)
 				if tidx % 3 == 0:
-					print("Checking mutant:", all_mutants[thread_args[widx][0]], "(" + str(1+thread_args[widx][0]) + "/" + str(len(all_mutants)) + ")", flush=True)
+					print("Checking mutant:", str(1+int(thread_args[widx][0]/3)) + "/" + str(len(all_mutants)), flush=True)
 				tidx += 1
 		# Check whether threads are done and poll their results
 		else:
 			work_idx = 0
 			while work_idx < len(worker_threads):
 				current_worker = worker_threads[work_idx]
-				current_worker.join(0.01)
+				current_worker.join(rate)
 				if not current_worker.is_alive():
 					del worker_threads[work_idx]
-					mut_behaves[3*current_worker.i1+current_worker.i2] = current_worker.exc
 				else:
 					work_idx += 1
 

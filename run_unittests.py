@@ -6,6 +6,7 @@ import os
 from config import get_default_config
 from tidydir import TidyDir as TidyDir
 import threading
+from multiprocessing import Lock
 
 current_config = None
 
@@ -47,12 +48,23 @@ def extract_test_stats(unittest_output):
 	return (total_tests-num_fail,num_fail)
 
 class PyTestThread(threading.Thread):
-	def __init__(self, script):
+	def __init__(self, script, scripts_p, scripts_f):
 		super().__init__()
 		self.script = script
+		self.scripts_p = scripts_p
+		self.scripts_f = scripts_f
 
 	def run(self):
-		self.res = run_unittests_for_script(self.script)
+		(tpass,tfail) = run_unittests_for_script(self.script)
+		if tfail == 0:
+			if tpass > 0:
+				with p_lock:
+					self.scripts_p.append((self.script,(tpass,tfail)))
+		else:
+			with f_lock:
+				self.scripts_f.append((self.script,(tpass,tfail)))
+
+
 
 def main(argv):
 	global current_config
@@ -81,33 +93,31 @@ def main(argv):
 					targets.append(mtnt)
 			except:
 				continue
-
+	global p_lock
+	p_lock = Lock()
+	global f_lock
+	f_lock = Lock()
 	workers_done = False
 	worker_threads = []
+	rate = 0.1/int(current_config["test_threads"])
 	tidx = 0
 	while not workers_done:
 		# Spawn more threads if there are free spots
 		if len(worker_threads) < num_workers and tidx < len(targets):
 			for widx in range(tidx,tidx+min(num_workers,len(targets)-tidx)):
-				new_worker = PyTestThread(targets[tidx])
+				new_worker = PyTestThread(targets[tidx], scripts_p, scripts_f)
 				new_worker.start()
 				worker_threads.append(new_worker)
-				print("Running tests for:", targets[tidx], "(" + str(tidx+1) + "/" + str(len(targets)) + ")", flush=True)
+				print("Running tests:", str(tidx+1) + "/" + str(len(targets)), flush=True)
 				tidx += 1
 		# Check whether threads are done and poll their results
 		else:
 			work_idx = 0
 			while work_idx < len(worker_threads):
 				current_worker = worker_threads[work_idx]
-				current_worker.join(0.01)
+				current_worker.join(rate)
 				if not current_worker.is_alive():
 					del worker_threads[work_idx]
-					(tpass,tfail) = current_worker.res
-					if tfail == 0:
-						if tpass > 0:
-							scripts_p.append((current_worker.script,(tpass,tfail)))
-					else:
-						scripts_f.append((current_worker.script,(tpass,tfail)))
 				else:
 					work_idx += 1
 
