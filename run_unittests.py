@@ -5,8 +5,7 @@ import re
 import os
 from config import get_default_config
 from tidydir import TidyDir as TidyDir
-import threading
-from multiprocessing import Lock
+import concurrent.futures
 
 current_config = None
 
@@ -47,24 +46,9 @@ def extract_test_stats(unittest_output):
 				num_fail += int(ob[1:])
 	return (total_tests-num_fail,num_fail)
 
-class PyTestThread(threading.Thread):
-	def __init__(self, script, scripts_p, scripts_f):
-		super().__init__()
-		self.script = script
-		self.scripts_p = scripts_p
-		self.scripts_f = scripts_f
-
-	def run(self):
-		(tpass,tfail) = run_unittests_for_script(self.script)
-		if tfail == 0:
-			if tpass > 0:
-				with p_lock:
-					self.scripts_p.append((self.script,(tpass,tfail)))
-		else:
-			with f_lock:
-				self.scripts_f.append((self.script,(tpass,tfail)))
-
-
+# Running tests can be done independently
+def run_tests_threaded(script):
+		return run_unittests_for_script(script)
 
 def main(argv):
 	global current_config
@@ -93,36 +77,20 @@ def main(argv):
 					targets.append(mtnt)
 			except:
 				continue
-	global p_lock
-	p_lock = Lock()
-	global f_lock
-	f_lock = Lock()
-	workers_done = False
-	worker_threads = []
-	rate = 0.1/int(current_config["test_threads"])
-	tidx = 0
-	while not workers_done:
-		# Spawn more threads if there are free spots
-		if len(worker_threads) < num_workers and tidx < len(targets):
-			for widx in range(tidx,tidx+min(num_workers,len(targets)-tidx)):
-				new_worker = PyTestThread(targets[tidx], scripts_p, scripts_f)
-				new_worker.start()
-				worker_threads.append(new_worker)
-				print("Running tests:", str(tidx+1) + "/" + str(len(targets)), flush=True)
-				tidx += 1
-		# Check whether threads are done and poll their results
-		else:
-			work_idx = 0
-			while work_idx < len(worker_threads):
-				current_worker = worker_threads[work_idx]
-				current_worker.join(rate)
-				if not current_worker.is_alive():
-					del worker_threads[work_idx]
-				else:
-					work_idx += 1
 
-		if tidx >= len(targets) and len(worker_threads) == 0:
-			workers_done = True
+	with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as tpe:
+		future_to_script = {tpe.submit(run_tests_threaded, test_script) : test_script for test_script in targets}
+		fidx = 0
+		for future in concurrent.futures.as_completed(future_to_script):
+			print("Running tests:", str(fidx+1) + "/" + str(len(targets)), flush=True)
+			test_script = future_to_script[future]
+			(tpass, tfail) = future.result()
+			if tfail == 0:
+				if tpass > 0:
+					scripts_p.append((test_script,(tpass,tfail)))
+			else:
+				scripts_f.append((test_script,(tpass,tfail)))
+			fidx += 1
 
 	# Write the test stats to a file. Mutants that fail no tests are at the top if they exist.
 	with open(test_res_fl, "w", encoding="UTF-8") as dest:

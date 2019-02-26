@@ -8,8 +8,7 @@ from config import get_default_config
 from tidydir import TidyDir as TidyDir
 import shutil
 import argtracer
-import threading
-from multiprocessing import Lock
+import concurrent.futures
 
 current_config = None
 
@@ -48,19 +47,9 @@ def extract_error_name(stderr_string):
 
 	return exc_name
 
-# Use threads as parallel execution of scripts can independent
-class PyExecutionThread(threading.Thread):
-	def __init__(self, i, file, input, arr):
-		super().__init__()
-		self.i = i
-		self.file = file
-		self.input = input
-		self.arr = arr
-
-	def run(self):
-		exc = execute_script_with_argument(self.file, self.input)
-		with arr_lock:
-			self.arr[self.i] = exc
+# Use threads as parallel execution of scripts can be independent
+def exec_threaded(file, input):
+	return execute_script_with_argument(file, input)
 
 # Removes potentially invalid mutants based on the error list and fixes the log accordingly
 def clean_and_fix_log(errs, logfile, sub_dir=None, script_base_name=None):
@@ -175,52 +164,28 @@ def main(argv):
 	cnt = 1
 	# Layout all detected behaviour linearly, each index triplet contains observed results of a mutated file
 	mut_behaves = [0 for _ in range(3*len(all_mutants))]
-	thread_args = []
-	i = 0
-	while i < len(mut_behaves):
-		my_mutant = all_mutants[int(i/3)]
-		# Find the used input
-		my_input = my_mutant[:my_mutant.rfind("_")]
-		my_input = inputs[int(my_input[my_input.rfind("_")+1:])]
-		# Check whether the valid string is rejected
-		thread_args.append((i, my_mutant, basein, mut_behaves))
-		# Check the output of the original script for the rejected string
-		thread_args.append((i+1, original_file, my_input, mut_behaves))
-		# Check the output of the mutated script for the rejected string
-		thread_args.append((i+2, my_mutant, my_input, mut_behaves))
-		i += 3
 
-	# Coordinate threaded execution
-	global arr_lock
-	arr_lock = Lock()
-	workers_done = False
-	worker_threads = []
-	rate = 0.1/int(current_config["test_threads"])
-	tidx = 0
-	while not workers_done:
-		# Spawn more threads if there are free spots
-		if len(worker_threads) < num_workers and tidx < len(thread_args):
-			for widx in range(tidx,tidx+min(num_workers,len(thread_args)-tidx)):
-				t_params = thread_args[widx]
-				new_worker = PyExecutionThread(t_params[0], t_params[1], t_params[2], t_params[3])
-				new_worker.start()
-				worker_threads.append(new_worker)
-				if tidx % 3 == 0:
-					print("Checking mutant:", str(1+int(thread_args[widx][0]/3)) + "/" + str(len(all_mutants)), flush=True)
-				tidx += 1
-		# Check whether threads are done and poll their results
-		else:
-			work_idx = 0
-			while work_idx < len(worker_threads):
-				current_worker = worker_threads[work_idx]
-				current_worker.join(rate)
-				if not current_worker.is_alive():
-					del worker_threads[work_idx]
-				else:
-					work_idx += 1
+	future_to_index = {}
+	with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as tpe:
+		for i in range(0,len(mut_behaves),3):
+			my_mutant = all_mutants[int(i/3)]
+			# Find the used input
+			my_input = my_mutant[:my_mutant.rfind("_")]
+			my_input = inputs[int(my_input[my_input.rfind("_")+1:])]
+			# Check whether the valid string is rejected
+			future_to_index[tpe.submit(exec_threaded, my_mutant, basein)] = i
+			# Check the output of the original script for the rejected string
+			future_to_index[tpe.submit(exec_threaded, original_file, my_input)] = i+1 
+			# Check the output of the mutated script for the rejected string
+			future_to_index[tpe.submit(exec_threaded, my_mutant, my_input)] = i+2
 
-		if tidx >= len(thread_args) and len(worker_threads) == 0:
-			workers_done = True
+		fidx = 0
+		for future in concurrent.futures.as_completed(future_to_index):
+			index = future_to_index[future]
+			mut_behaves[index] = future.result()
+			if fidx % 3 == 0:
+				print("Checking mutant:", str(1+int(fidx/3)) + "/" + str(len(all_mutants)), flush=True)
+			fidx += 1
 
 	bhindex = 0
 	while bhindex < len(mut_behaves):
