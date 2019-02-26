@@ -554,13 +554,17 @@ def main(argv, seed=None):
     # Run the mutation process for every rejected string
     for s in rej_strs:
         s = s[0]
-        queue = [(ar1, [], 0, None, None, None)]
+        if int(current_config["variable_base"]) == 0:
+            queue = [(ar1, [], 0, None, None, None, b_cdict)]
+        else:
+            queue = []
+            for bconds in base_conds:
+                queue.append((ar1, [], 0, None, None, None, bconds))
         discarded = set()
         # Save which exception the first execution of the rejected string produced
         original_ex_str = None
-        b_cdict = None if int(current_config["variable_base"]) > 0 else b_cdict
         while queue:
-            (arg, history, retries, pidx, pmstate, scstate) = queue.pop(0)
+            (arg, history, retries, pidx, pmstate, scstate, b_cdict) = queue.pop(0)
             print("Current script:", arg, flush=True)
             # Check whether the chosen correct string is now rejected
             try:
@@ -632,7 +636,7 @@ def main(argv, seed=None):
                         fix = fix + "\n"
                         mods = { history[-1] : fix }
                         cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
-                        queue.append((cand, history.copy(), retries+1, pidx, pstate, None))
+                        queue.append((cand, history.copy(), retries+1, pidx, pstate, None, b_cdict))
                         file_copy_replace(cand, arg, mods)
                         mut_cnt += 1
                 elif retries >= int(current_config["mut_retries"]):
@@ -653,35 +657,6 @@ def main(argv, seed=None):
                 mutants_with_cause.append((arg, "valid string rejected"))
 
             (prim, sec) = (None, None)
-            # Create a union of deltas for all base strings
-            if int(current_config["variable_base"]) > 0:
-                all_prim = []
-                all_sec = []
-                # Unify traces of all unique bases
-                for cond_cand in base_conds:
-                    (prim, sec) = get_left_diff(cdict, cond_cand)
-                    all_prim.append(prim)
-                    all_sec.append(sec)
-
-                primset = set()
-                secset = set()
-                # Create a union of all prim lists
-                for prim_lst in all_prim:
-                    for prim_ele in prim_lst:
-                        primset.add(prim_ele)
-
-                prim = [e for e in primset]
-
-                # Use the intersection of all sec to eliminate some unlikely candidates
-                for sec_lst in all_sec:
-                    secset = set(sec_lst) if not secset else secset.intersection(set(sec_lst))
-
-                # Elements that are already in prim must not be in sec
-                secset = secset.difference(primset)
-
-                sec = [e for e in secset]
-
-            # When using single base just do one diff
             if prim is None and sec is None:
                 (prim, sec) = get_left_diff(cdict, b_cdict)
             # Remove all elements that have been explored (history) or do not belong to the actual code (i.e. error constructor - lines)
@@ -695,7 +670,7 @@ def main(argv, seed=None):
             sec = [] if not sec or len(prim) > 0 else rm_dups(sec, history, all_generated)
 
             print("Used string:", repr(s), flush=True)
-            print("Queue lenght:", len(queue), flush=True)
+            print("Queue length:", len(queue), flush=True)
             print("Change history:", history, flush=True)
             print("Difference to base (flipped):", prim, flush=True)
             print("Difference to base (new):", sec, flush=True)
@@ -706,10 +681,7 @@ def main(argv, seed=None):
             	diff_err = str(err.__class__) != original_ex_str
             	err = True
             print("Mutated string rejected:", err, "different:", diff_err, flush=True)
-            if err and not diff_err:
-                if not berr:
-                    # In case the base string is not rejected we discard the script, otherwise we can keep it
-                	discarded.add(arg)
+            if (err and not diff_err) or int(current_config["early_stop"]) == 0:
                 all_fixes = get_possible_fixes((prim, sec), arg)
                 if all_fixes:
                     for (fix_list, fix_line, pstate, sstate) in all_fixes:
@@ -719,13 +691,16 @@ def main(argv, seed=None):
                                 fix = fix + "\n"
                             cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
                             mods = { fix_line : fix }
-                            queue.append((cand, history.copy()+[fix_line],0, permindex, pstate, sstate))
+                            queue.append((cand, history.copy()+[fix_line],0, permindex, pstate, sstate, b_cdict))
                             file_copy_replace(cand, arg, mods)
                             mut_cnt += 1
-            # Stop the mutation when the originally rejected string is accepted
-            elif arg != ar1:
-            	print("Mutation complete:", arg, "(mutated string accepted)", flush=True)
-            	mutants_with_cause.append((arg, "mutated string accepted"))
+            # Check whether the mutant is valid (rejects base or accepts mutated string) and record its behaviour
+            if arg != ar1:
+                if not err or diff_err:
+                	print("Mutation complete:", arg, "(mutated string accepted)", flush=True)
+                	mutants_with_cause.append((arg, "mutated string accepted"))
+                elif not berr:
+                    discarded.add(arg)
             		
         # Don't delete the original script, we need it to create mutants from whenever a new rejected string is processed
         discarded.discard(ar1)

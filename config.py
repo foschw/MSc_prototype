@@ -35,9 +35,12 @@ def get_default_config(conf_path=None):
 		# Indicates whether the mutation algorithm should: always use the most complex string ("0"), or use a combination of all ("1")
 		"variable_base" : "1",
 		# Set to 0 to disallow blind modifications whenever there are no guided ones. This reduces the required time and space (drive and memory) significantly, but the results may be worse.
-		"blind_continue" : "1",
+		"blind_continue" : "0",
 		# Amount of threads that the test tools (check_results and run_unittests) should use
 		"test_threads" : "16"
+		,
+		# Set to 1 to stop mutation early (i.e. directly after the mutated string is accepted)
+		"early_stop" : "0"
 		,
 		}
 		return DEFAULT_CONFIG
