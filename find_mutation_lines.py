@@ -636,7 +636,7 @@ def main(argv, seed=None):
                         fix = fix + "\n"
                         mods = { history[-1] : fix }
                         cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
-                        queue.append((cand, history.copy(), retries+1, pidx, pstate, None, b_cdict))
+                        queue.insert(0,(cand, history.copy(), retries+1, pidx, pstate, None, b_cdict))
                         file_copy_replace(cand, arg, mods)
                         mut_cnt += 1
                 elif retries >= int(current_config["mut_retries"]):
@@ -656,9 +656,7 @@ def main(argv, seed=None):
                 print("Exception for base on", arg, ":", repr(berr), flush=True)
                 mutants_with_cause.append((arg, "valid string rejected"))
 
-            (prim, sec) = (None, None)
-            if prim is None and sec is None:
-                (prim, sec) = get_left_diff(cdict, b_cdict)
+            (prim, sec) = get_left_diff(cdict, b_cdict)
             # Remove all elements that have been explored (history) or do not belong to the actual code (i.e. error constructor - lines)
             prim = [e for e in prim if e[0] not in history and e[0] in lines]
             sec = [e for e in sec if e[0] not in history and e[0] in lines] if int(current_config["blind_continue"]) else []
@@ -691,7 +689,7 @@ def main(argv, seed=None):
                                 fix = fix + "\n"
                             cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
                             mods = { fix_line : fix }
-                            queue.append((cand, history.copy()+[fix_line],0, permindex, pstate, sstate, b_cdict))
+                            queue.insert(0,(cand, history.copy()+[fix_line],0, permindex, pstate, sstate, b_cdict))
                             file_copy_replace(cand, arg, mods)
                             mut_cnt += 1
             # Check whether the mutant is valid (rejects base or accepts mutated string) and record its behaviour

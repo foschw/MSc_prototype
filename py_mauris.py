@@ -40,7 +40,7 @@ def main(argv):
     print("Testing result integrity...", flush=True)
     check([None, prog, binfile, True])
     # Finally run the program's test suite
-    print("Running unittests...", flush=True)
+    print("Running unit tests...", flush=True)
     run_tests([None, prog])
     print()
     print("Done.", "(Timestamp: '" + str(datetime.datetime.now()) + "')", flush=True)
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     timeout = None
     seed = None
     if len(sys.argv) < 2:
-        raise SystemExit("Please specifiy a .py file as argument.")
+        raise SystemExit("Please specify a .py file as argument.")
     elif len(sys.argv) > 2 and not sys.argv[2].startswith("-"):
         raise SystemExit("Invalid parameter after script. \n Possible options: \n -b \"binary input file\", \n -t \"time for generation (in s)\", \n -l \"timeout for mutant execution (in s)")
 

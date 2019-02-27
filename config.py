@@ -9,7 +9,7 @@ def get_default_config(conf_path=None):
 		DEFAULT_CONFIG = {
 		# The minimal timeout for each script execution in s
 		"min_timeout" : "1",
-		# Timeout for the unittest execution in s
+		# Timeout for the unit test execution in s
 		"unittest_timeout" : "5",
 		# Overhead for the generation time limit
 		"best_overhead" : "0.9",
@@ -34,7 +34,7 @@ def get_default_config(conf_path=None):
 		"mut_retries" : "10",
 		# Indicates whether the mutation algorithm should: always use the most complex string ("0"), or use a combination of all ("1")
 		"variable_base" : "1",
-		# Set to 0 to disallow blind modifications whenever there are no guided ones. This reduces the required time and space (drive and memory) significantly, but the results may be worse.
+		# Set to 1 to allow blind modifications whenever there are no guided ones. This increases the required time and space (drive and memory) significantly, but the results may improve.
 		"blind_continue" : "0",
 		# Amount of threads that the test tools (check_results and run_unittests) should use
 		"test_threads" : "16"

@@ -22,7 +22,7 @@ def run_unittests_for_script(script):
 		proc.communicate()
 		return (-1,-1)
 	except:
-		raise SystemExit("Unittest execution failed.")
+		raise SystemExit("Unit test execution failed.")
 	return extract_test_stats(res)
 
 # Extracts the amount of test passes p and fails f as pair (p, f)
