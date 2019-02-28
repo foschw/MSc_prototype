@@ -441,22 +441,31 @@ def cleanup(mut_dir):
             os.remove(fl)
 
 # Removes elements that would create duplicates from prim or sec and updates hrecord if necessary
-def rm_dups(prsec, history, hrecord):
+def rm_dups(prsec, history, hrecord, h_index):
     if prsec:
         primindex = 0
         while primindex < len(prsec):
             mut_set = frozenset(history + [prsec[primindex][0]])
             dup_found = False
-            for his in hrecord:
+            for his in hrecord[h_index]:
                 if frozenset(his) == mut_set:
                     del prsec[primindex]
                     dup_found = True
                     break
             if not dup_found:
-                hrecord.append(history.copy() + [prsec[primindex][0]])
+                hrecord[h_index].append(history.copy() + [prsec[primindex][0]])
                 primindex += 1
 
     return prsec
+
+# Translate the dict into a frozenset of pairs to easily check for equality
+def get_frozen(argtracer_dict):
+    tmp = []
+    for k in argtracer_dict.keys():
+        for e in argtracer_dict[k]:
+            tmp.append((k,e))
+
+    return frozenset(tmp)
 
 def main(argv, seed=None):
     random.seed(seed)
@@ -503,6 +512,7 @@ def main(argv, seed=None):
         pos = 0
         print("Mutated string:", repr(cand[0]), flush=True)
         print("Valid string:", repr(cand[1]), flush=True)
+        base_index = 0
         for str_inpt in cand:
             start_time = timer()
             try:
@@ -512,9 +522,11 @@ def main(argv, seed=None):
                     base_conds.append(base_cond)
                     if len(base_cond) > ln_cond:
                         basein = cand[1]
+                        base_pos = base_index
                         ln_cond = len(base_cond)
                     if someerror:
                         raise SystemExit("Invalid input: " + repr(str_inpt) + ".\nAborted.")
+                    base_index += 1
             finally:
                 pos += 1
                 time_elapsed = timer() - start_time
@@ -537,8 +549,7 @@ def main(argv, seed=None):
     while idxl < len(base_conds):
         idxr = idxl+1
         while idxr < len(base_conds):
-            (pmy, sdy) = get_left_diff(base_conds[idxl],base_conds[idxr])
-            if len(pmy) == 0 and len(sdy) == 0:
+            if get_frozen(base_conds[idxl]) == get_frozen(base_conds[idxr]):
                 del base_conds[idxr]
             else:
                 idxr += 1
@@ -548,22 +559,23 @@ def main(argv, seed=None):
 
     print("Used baseinput:", repr(basein))
 
-    all_generated = []
+    all_generated = { int_key : [] for int_key in range(len(base_conds)) }
 
     # Run the mutation process for every rejected string
     for s in rej_strs:
         s = s[0]
         if int(current_config["variable_base"]) == 0:
-            queue = [(ar1, [], 0, None, None, None, b_cdict)]
+            queue = [(ar1, [], 0, None, None, None, base_index)]
         else:
             queue = []
-            for bconds in base_conds:
-                queue.append((ar1, [], 0, None, None, None, bconds))
+            for base_index in range(len(base_conds)):
+                queue.append((ar1, [], 0, None, None, None, base_index))
         discarded = set()
         # Save which exception the first execution of the rejected string produced
         original_ex_str = None
         while queue:
-            (arg, history, retries, pidx, pmstate, scstate, b_cdict) = queue.pop(0)
+            (arg, history, retries, pidx, pmstate, scstate, b_cindex) = queue.pop(0)
+            b_cdict = base_conds[b_cindex]
             print("Current script:", arg, flush=True)
             # Check whether the chosen correct string is now rejected
             try:
@@ -635,7 +647,7 @@ def main(argv, seed=None):
                         fix = fix + "\n"
                         mods = { history[-1] : fix }
                         cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
-                        queue.insert(0,(cand, history.copy(), retries+1, pidx, pstate, None, b_cdict))
+                        queue.insert(0,(cand, history.copy(), retries+1, pidx, pstate, None, b_cindex))
                         file_copy_replace(cand, arg, mods)
                         mut_cnt += 1
                 elif retries >= int(current_config["mut_retries"]):
@@ -661,10 +673,10 @@ def main(argv, seed=None):
             sec = [e for e in sec if e[0] not in history and e[0] in lines] if int(current_config["blind_continue"]) else []
            
             # Don't create mutants if their line combination is already in the queue
-            prim = [] if not prim else rm_dups(prim, history, all_generated)
+            prim = [] if not prim else rm_dups(prim, history, all_generated, b_cindex)
 
             # Sec will never be progressed if prim is not empty
-            sec = [] if not sec or len(prim) > 0 else rm_dups(sec, history, all_generated)
+            sec = [] if not sec or len(prim) > 0 else rm_dups(sec, history, all_generated, b_cindex)
 
             print("Used string:", repr(s), flush=True)
             print("Queue length:", len(queue), flush=True)
@@ -688,7 +700,7 @@ def main(argv, seed=None):
                                 fix = fix + "\n"
                             cand = mut_dir + script_name + "_" + str(str_cnt) + "_" + str(mut_cnt) + ".py"
                             mods = { fix_line : fix }
-                            queue.insert(0,(cand, history.copy()+[fix_line],0, permindex, pstate, sstate, b_cdict))
+                            queue.insert(0,(cand, history.copy()+[fix_line],0, permindex, pstate, sstate, b_cindex))
                             file_copy_replace(cand, arg, mods)
                             mut_cnt += 1
             # Check whether the mutant is valid (rejects base or accepts mutated string) and record its behaviour
