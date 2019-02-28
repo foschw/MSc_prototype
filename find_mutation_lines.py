@@ -446,7 +446,6 @@ def rm_dups(prsec, history, hrecord):
         primindex = 0
         while primindex < len(prsec):
             mut_set = frozenset(history + [prsec[primindex][0]])
-            mut_hash = hash(mut_set)
             dup_found = False
             for his in hrecord:
                 if frozenset(his) == mut_set:
