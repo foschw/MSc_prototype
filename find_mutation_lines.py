@@ -725,6 +725,8 @@ def main(argv, seed=None):
     if not os.path.exists(mut_dir+"original/"):
         os.makedirs(mut_dir+"original/")
 
+    if os.path.exists(ar1[:ar1.rfind("/")] + "/original"+ar1[ar1.rfind("/"):]):
+        os.remove(ar1[:ar1.rfind("/")] + "/original"+ar1[ar1.rfind("/"):])
     os.rename(ar1, ar1[:ar1.rfind("/")] + "/original"+ar1[ar1.rfind("/"):])
     print("Done. The final mutants are in:", mut_dir)
     # Write a log on why each file was kept. This way we (or check_results.py) can check whether the mutation procedure is working correctly.
