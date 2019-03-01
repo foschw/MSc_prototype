@@ -40,13 +40,11 @@ class CondAST:
 	def __init__(self, sourcefile, deformattedfile):
 		# Get the program's AST
 		self.source = sourcefile
-		self.myast = ast.parse(CondAST.expr_from_source(sourcefile), sourcefile)
-		ast.fix_missing_locations(self.myast)
+		self.myast = ast.fix_missing_locations(ast.parse(CondAST.expr_from_source(sourcefile), sourcefile))
 		# Use ASTUnparse to get uniform formatting
 		with open(deformattedfile,"w", encoding="UTF-8") as defile:
 			defile.write(astunparse.unparse(self.myast))
-		self.myast = ast.parse(CondAST.expr_from_source(deformattedfile), deformattedfile)
-		ast.fix_missing_locations(self.myast)
+		self.myast = ast.fix_missing_locations(ast.parse(CondAST.expr_from_source(deformattedfile), deformattedfile))
 		# Stores for each condition line the line of its then branch
 		self.exc_class_dict = {}
 		self.cond_dict = {}
