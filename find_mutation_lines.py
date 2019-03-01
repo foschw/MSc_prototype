@@ -349,12 +349,15 @@ def make_new_conditions(lineno, file):
     # Compute partial inversions
     for part_inv in get_partial_inversions(full_str):
         possible_conditions.append((part_inv, None))
-    # Reduce the string to only the condition, i.e. "if True:" becomes "True"
+    # Reduce the string to only the condition, e.g. "if True:" becomes "True"
     cond_str = full_str[full_str.find("if")+3:full_str.rfind(":")]
     # Get default mutations
     for (new_cond, permidx) in mutate_default(cond_str):
         nc1 = full_str[:full_str.find("if")+2] + " " + new_cond + ":"
         possible_conditions.append((str(nc1),permidx))
+        # Mix partial inversions with flat mutations
+        for part_inv in get_partial_inversions(str(nc1)):
+            possible_conditions.append((part_inv, None))
 
     return possible_conditions
 
@@ -632,14 +635,9 @@ def main(argv, seed=None):
                 print("Removed:", arg, "(unsuccessful modification)", flush=True)
                 if retries < int(current_config["mut_retries"]) and pidx:
                     # Try again
-                    full_str = manual_errs.get_if_from_line(history[-1], arg)
+                    full_str = manual_errs.get_if_from_line(history[-1], ar1)
                     cond_str = full_str[full_str.find("if")+3:full_str.rfind(":")]
                     inpt_ast = ast.fix_missing_locations(ast.parse(cond_str))
-                    mvisit = MutVisit()
-                    mvisit.visit(inpt_ast)
-                    # The previous modification changed the amount of tokens.
-                    if mvisit.mod_cnt > len(pidx):
-                        pidx = pidx.zfill(mvisit.mod_cnt)
                     mtrans = MutTransformer(pidx)
                     res = mtrans.visit(inpt_ast)
                     fix = full_str[:full_str.find("if")+2] + " " + astunparse.unparse(res).lstrip().rstrip() + ":"
