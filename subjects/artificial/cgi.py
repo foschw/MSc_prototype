@@ -54,6 +54,12 @@ class TestDecode(unittest.TestCase):
     def test_normal_2(self):
         self.assertEqual(cgi_decode("http://www.google.com"), "http://www.google.com")
 
+    def test_plus(self):
+    	self.assertEqual(cgi_decode("1+2"), "1 2")
+
+    def test_empty_string(self):
+    	self.assertEqual(cgi_decode(""), "")
+
 def cgi_decode(s):
     t = ""
     i = 0
