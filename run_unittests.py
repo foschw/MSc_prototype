@@ -94,6 +94,7 @@ def main(argv):
 
 	# Write the test stats to a file. Mutants that fail no tests are at the top if they exist.
 	with open(test_res_fl, "w", encoding="UTF-8") as dest:
+		scripts_p = sorted(scripts_p, key=by_index)
 		for (scrpt, (tpass,tfail)) in scripts_p:
 			dest.write(scrpt + ":\nPass: " + str(tpass) + ", Fail: " + str(tfail) + " \n")
 			dest.write("\n")
@@ -102,7 +103,7 @@ def main(argv):
 			dest.write("---------------------------------------------------------------------------------------------------\n")
 			dest.write("\n")
 
-		scripts_f = sorted(scripts_f, key=by_fail)
+		scripts_f = sorted(sorted(scripts_f, key=by_index), key=by_fail)
 
 		for (scrpt, (tpass,tfail)) in scripts_f:
 			dest.write(scrpt + ":\nPass: " + str(tpass) + ", Fail: " + str(tfail) + " \n")
@@ -112,6 +113,12 @@ def by_fail(result):
 	(_, (_, tfail)) = result
 	rv = tfail if tfail >= 0 else float("inf")
 	return rv
+
+def by_index(result):
+	(mutant_name, _) = result
+	ky = mutant_name[mutant_name.rfind("/")+1:mutant_name.rfind(".py")]
+	ky = ky[ky.find("_")+1:]
+	return (int(ky[:ky.find("_")]), int(ky[ky.find("_")+1:]))
 
 if __name__ == "__main__":
 	main(sys.argv)
