@@ -130,7 +130,7 @@ def get_valid_inputs(arg, timelimit):
     return res
 
 # Generate rejected strings by applying mutation operations
-def gen(arg, timelimit):
+def gen(arg, timelimit, valid_strs=None):
     global current_config
     # Mutation attempts per generated string since mutations are cheap but generation is expensive
     max_rej = int(timelimit)
@@ -143,7 +143,7 @@ def gen(arg, timelimit):
     l2_mutops = [swap]
     # Mutation operations for strings with length > 0
     l1_mutops = [trim, delete]
-    valid_strs = get_valid_inputs(arg, timelimit)
+    valid_strs = valid_strs if valid_strs else get_valid_inputs(arg, timelimit)
     valid_str_lst = RandomizedList([elemnt for elemnt in valid_strs])
     print("Got", len(valid_strs), "valid strings from pychains (" + str(timelimit) + " s)")
     max_rej = max(max_rej, 2*len(valid_strs))
@@ -185,7 +185,12 @@ def main(args, seed=None):
     # Add the subject's path to sys.path
     sys.path.insert(0, args[1][:args[1].rfind("/")+1])
     # Generate rejected input strings
-    res = gen(args[1], int(args[2]) if len(args) > 2 else int(current_config["default_gen_time"]))
+    if len(args) > 4 and args[4]:
+        with open(args[4], "r", encoding="UTF-8") as vf:
+            valid_ins = eval(vf.read())
+    else:
+        valid_ins = None
+    res = gen(args[1], int(args[2]) if len(args) > 2 else int(current_config["default_gen_time"]), valid_strs=valid_ins)
     outfile = args[3] if len(args) > 3 else current_config["default_rejected"]
     resl = []
     for r in res:

@@ -21,6 +21,7 @@ def main(argv):
     timelimit = int(current_config["default_gen_time"]) if not argv[3] else argv[3]
     timeout = int(current_config["min_timeout"]) if not argv[4] else argv[4]
     seed = None if not argv[5] else argv[5]
+    valid_file = None if not argv[6] else argv[6]
 
     # Generate inputs in case no binary file is supplied
     if not argv[2]:
@@ -29,7 +30,7 @@ def main(argv):
         with open(target_loc, "w", encoding="UTF-8") as inst_out:
             inst_out.write(instr_code)
         print("Generating inputs for:", prog, "...", flush=True)
-        gen([None, target_loc, timelimit, binfile],seed)
+        gen([None, target_loc, timelimit, binfile, valid_file],seed)
     # Otherwise use the given inputs
     else:
         print("Using inputs from:", binfile, flush=True)
@@ -52,13 +53,13 @@ if __name__ == "__main__":
     timelimit = None
     timeout = None
     seed = None
+    valid_file = None
     if len(sys.argv) < 2:
         raise SystemExit("Please specify a .py file as argument.")
     elif len(sys.argv) > 2 and not sys.argv[2].startswith("-"):
-        raise SystemExit("Invalid parameter after script. \n Possible options: \n -b \"binary input file\", \n -t \"time for generation (in s)\", \n -l \"timeout for mutant execution (in s)")
+        raise SystemExit("Invalid parameter after script. \n Possible options: \n -b \"binary input file\", \n -t \"time for generation (in s)\", \n -l \"timeout for mutant execution (in s)\",\n -s \"random seed\",\n \"-v file_with_valid_inputs\"")
 
-
-    opts, args = getopt.getopt(sys.argv[2:], "b:t:l:s:")
+    opts, args = getopt.getopt(sys.argv[2:], "b:t:l:s:v:")
     for opt, a in opts:
         if opt == "-b":
             print("Using binary file:", a, flush=True)
@@ -69,5 +70,7 @@ if __name__ == "__main__":
             timeout = int(a)
         elif opt == "-s":
             seed = int(a)
+        elif opt == "-v":
+            valid_file = a
 
-    main([sys.argv[0],sys.argv[1],binfile,timelimit,timeout,seed])
+    main([sys.argv[0],sys.argv[1],binfile,timelimit,timeout,seed,valid_file])

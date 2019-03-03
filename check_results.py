@@ -256,19 +256,27 @@ def main(argv):
 		os.remove(behave_file)
 	with open(behave_file, "w", encoding="UTF-8") as dest:
 		if mut_0:
+			mut_0 = sorted(mut_0, key=by_index)
 			dest.write("Valid string rejected:\n")
 			for m_0 in mut_0:
 				dest.write(repr(m_0) + "\n")
 			dest.write("\n")
 		if mut_1:
+			mut_1 = sorted(mut_1, key=by_index)
 			dest.write("Invalid string raises new exception:\n")
 			for m_1 in mut_1:
 				dest.write(repr(m_1) + "\n")
 			dest.write("\n")
 		if mut_2:
+			mut_2 = sorted(mut_2, key=by_index)
 			dest.write("Invalid string accepted:\n")
 			for m_2 in mut_2:
 				dest.write(repr(m_2) + "\n")
+
+def by_index(mutant_name):
+	ky = mutant_name[mutant_name.rfind("/")+1:mutant_name.rfind(".py")]
+	ky = ky[ky.find("_")+1:]
+	return (int(ky[:ky.find("_")]), int(ky[ky.find("_")+1:]))
 
 if __name__ == "__main__":
 	main(sys.argv)
