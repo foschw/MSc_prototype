@@ -117,7 +117,7 @@ def by_fail(result):
 def by_index(result):
 	(mutant_name, _) = result
 	ky = mutant_name[mutant_name.rfind("/")+1:mutant_name.rfind(".py")]
-	ky = ky[ky.find("_")+1:]
+	ky = ky[ky[:ky.rfind("_")-1].rfind("_")+1:]
 	return (int(ky[:ky.find("_")]), int(ky[ky.find("_")+1:]))
 
 if __name__ == "__main__":
