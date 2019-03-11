@@ -116,10 +116,10 @@ def get_valid_inputs(arg, timelimit):
             (a, r) = e.exec_argument(_mod.main)
         except:
             print("Pychains encountered an error, skipping...", flush=True)
-            taintedstr.reset_comparisons()
             continue
         finally:
             time_elapsed = timer() - start_chain
+            taintedstr.reset_comparisons()
             if time_elapsed < best_time or best_time == 0:
                 best_time = time_elapsed
             timelimit -= time_elapsed

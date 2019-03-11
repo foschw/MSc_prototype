@@ -6,11 +6,11 @@ import unittest
 
 class TestMathexpr(unittest.TestCase):
     def test_pi_const(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(TypeError):
             parser = Parser("", vars={"pi":"3"})
 
     def test_e_const(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(TypeError) as ex:
             parser = Parser("", vars={"e":"3"})
 
     def test_priority(self):
@@ -20,24 +20,26 @@ class TestMathexpr(unittest.TestCase):
         self.assertEqual(Parser("\t2*\n3").getValue(),6)
 
     def test_invalid_char(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(TypeError):
             Parser("2*?").getValue()
 
     def test_div_by_zero(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(TypeError):
             Parser("pi/0").getValue()
 
     def test_parentheses_unbalanced(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception) as ex:
             Parser("(2*(3+4)))").getValue()
+        self.assertEqual(type(ex.exception), Exception)
 
     def test_unbound_var(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(TypeError):
             Parser("2*a").getValue()
 
     def test_multiple_dot(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception) as ex:
             Parser("2.45.6").getValue()
+        self.assertEqual(type(ex.exception), Exception)
 
     def test_neg_1(self):
         self.assertEqual(Parser("2*-21").getValue(),-42)
