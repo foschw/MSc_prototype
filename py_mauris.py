@@ -24,6 +24,11 @@ def main(argv):
     seed = None if not argv[5] else argv[5]
     valid_file = None if not argv[6] else argv[6]
 
+    if seed is None:
+        random.seed()
+        # A random 32 bit integer
+        seed = random.randrange(2**31-1)
+
     # Generate inputs in case no binary file is supplied
     if not argv[2]:
         instr_code = rewrite_ast(prog)
@@ -35,9 +40,6 @@ def main(argv):
     # Otherwise use the given inputs
     else:
         print("Using inputs from:", binfile, flush=True)
-    if seed is None:
-        random.seed()
-        seed = random.randrange(sys.maxsize)
     print("Starting mutation...", prog, "(Timestamp: '" + str(datetime.datetime.now()) + ", seed: " + str(seed) + "')", flush=True)
     # Run the mutation algorithm
     mutate([None, prog, binfile, timeout], seed)
