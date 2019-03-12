@@ -10,6 +10,7 @@ from config import get_default_config
 from tidydir import TidyDir as TidyDir
 from rewrite_ast import rewrite_in as rewrite_ast
 import datetime
+import random
 
 current_config = None
 
@@ -34,7 +35,10 @@ def main(argv):
     # Otherwise use the given inputs
     else:
         print("Using inputs from:", binfile, flush=True)
-    print("Starting mutation...", prog, "(Timestamp: '" + str(datetime.datetime.now()) + "')", flush=True)
+    if seed is None:
+        random.seed()
+        seed = random.randrange(sys.maxsize)
+    print("Starting mutation...", prog, "(Timestamp: '" + str(datetime.datetime.now()) + ", seed: " + str(seed) + "')", flush=True)
     # Run the mutation algorithm
     mutate([None, prog, binfile, timeout], seed)
     # Check whether the results are fine and remove potentially problematic scripts
