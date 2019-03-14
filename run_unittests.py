@@ -6,6 +6,7 @@ import os
 from config import get_default_config
 from tidydir import TidyDir as TidyDir
 import concurrent.futures
+import glob
 
 current_config = None
 
@@ -55,28 +56,24 @@ def main(argv):
 	current_config = get_default_config()
 	# Specify the original name of the script or its path to check the results. 
 	if len(argv) < 2:
-		raise SystemExit("Please specify the script name!")
-
-	scriptname = argv[1] if not argv[1].endswith(".py") else argv[1][:argv[1].rfind(".py")]
+		raise SystemExit("Please specify the folder the scripts are in!")
+	argv[1] = argv[1].replace("\\", "/")
+	scriptname = argv[1][:-1] if argv[1].endswith("/") else argv[1]
+	scriptname = scriptname if scriptname.rfind("/") == -1 else scriptname[scriptname.rfind("/")+1:]
 	base_dir = TidyDir("",guess=False)
 	(sub_dir, script_name) = base_dir.split_path(scriptname)
 	if scriptname.rfind("/") >= 0:
 		scriptname = scriptname[scriptname.rfind("/")+1:]
-	behave_file = str(TidyDir(current_config["default_mut_dir"]+"/")) + scriptname + "_verified.log"
 	test_res_fl = str(TidyDir(current_config["default_mut_dir"]+"/")) + scriptname + "_test_results.log"
 	scripts_f = []
 	scripts_p = []
 	targets = []
 	num_workers = int(current_config["test_threads"])
 
-	with open(behave_file, "r", encoding="UTF-8") as bf: 
-		for _,line in enumerate(bf):
-			try:
-				mtnt = eval(line)
-				if mtnt not in targets:
-					targets.append(mtnt)
-			except:
-				continue
+	for fnm in glob.iglob(argv[1]+"/*.py", recursive=True):
+		fnm = fnm.replace("\\","/")
+		if fnm not in targets:
+			targets.append(fnm)
 
 	with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as tpe:
 		future_to_script = {tpe.submit(run_tests_threaded, test_script) : test_script for test_script in targets}

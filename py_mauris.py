@@ -48,7 +48,7 @@ def main(argv):
     check([None, prog, binfile, True])
     # Finally run the program's test suite
     print("Running unit tests...", flush=True)
-    run_tests([None, prog])
+    run_tests([None, current_config["default_mut_dir"] + prog[prog.rfind("/")+1:-3]+"/"])
     print()
     print("Done.", "(Timestamp: '" + str(datetime.datetime.now()) + "')", flush=True)
 
