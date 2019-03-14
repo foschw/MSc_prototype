@@ -719,12 +719,10 @@ def main(argv, seed=None):
         mut_cnt = 0
         print("Processing string number:", str(str_cnt), "/", str(len(rej_strs)),flush=True)
     # Move the copy of the original script since it is not a mutant
-    if not os.path.exists(mut_dir+"original/"):
-        os.makedirs(mut_dir+"original/")
-
-    if os.path.exists(ar1[:ar1.rfind("/")] + "/original"+ar1[ar1.rfind("/"):]):
-        os.remove(ar1[:ar1.rfind("/")] + "/original"+ar1[ar1.rfind("/"):])
-    os.rename(ar1, ar1[:ar1.rfind("/")] + "/original"+ar1[ar1.rfind("/"):])
+    orig_out = current_config["default_mut_dir"] + ar1[ar1.rfind("/")+1:]
+    if os.path.exists(orig_out):
+        os.remove(orig_out)
+    os.rename(ar1, orig_out)
     print("Done. The final mutants are in:", mut_dir)
     # Write a log on why each file was kept. This way we (or check_results.py) can check whether the mutation procedure is working correctly.
     with open(mut_dir[:-1] + "_inputs.log", "w", encoding="UTF-8") as file:
