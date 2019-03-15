@@ -274,8 +274,7 @@ def main(argv):
 				dest.write(repr(m_2) + "\n")
 
 def by_index(mutant_name):
-	ky = mutant_name[mutant_name.rfind("/")+1:mutant_name.rfind(".py")]
-	ky = ky[ky[:ky.rfind("_")-1].rfind("_")+1:]
+	ky = re.findall(r"_\d+_\d+\.py$", mutant_name)[0][1:-3]
 	return (int(ky[:ky.find("_")]), int(ky[ky.find("_")+1:]))
 
 if __name__ == "__main__":
