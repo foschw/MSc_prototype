@@ -230,7 +230,6 @@ def trace(arg, inpt, timeout=None):
     except Exception as ex:
     	err = ex
     	sys.settrace(None)
-    	traceback.print_exc()
     sys.settrace(None)
     # Return all lines, conditional lines with their branch (True/False), all observed variable assignments and the exception encountered
     return (lines.copy(), cond_dict.copy(), vrs.copy(), err)
