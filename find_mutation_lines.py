@@ -499,6 +499,8 @@ def main(argv, seed=None):
     pick_file = argv[2] if len(argv) > 2 else current_config["default_rejected"]
     pick_handle = open(pick_file, 'rb')
     rej_strs = pickle.load(pick_handle)
+    if not rej_strs:
+        raise SystemExit("File: " + pick_file + " contains no inputs.")
 
     # Precompute the locations of conditions and the lines of their then and else case and format the file properly
     global manual_errs
