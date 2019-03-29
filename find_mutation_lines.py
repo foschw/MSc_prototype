@@ -612,7 +612,9 @@ def main(argv, seed=None):
             try:
                 (lines, cdict, _, err) = argtracer.trace(arg, s, timeout=timeout)
             except:
-                skip = True
+                print("Discarding:", arg, "(mutated string timed out)", flush=True)
+                os.remove(arg)
+                continue
 
             # Remove lines used to construct custom exceptions
             lines = manual_errs.remove_custom_lines(lines)
@@ -630,7 +632,7 @@ def main(argv, seed=None):
                     original_ex_str = str(err.__class__)
 
             # Check whether the modification changed the condition state
-            skip = skip or (pmstate is not None and cdict.get(history[-1]) is not None and cdict.get(history[-1]) == pmstate)
+            skip = pmstate is not None and cdict.get(history[-1]) is not None and cdict.get(history[-1]) == pmstate
 
             if skip:
                 print("Removed:", arg, "(unsuccessful modification)", flush=True)
