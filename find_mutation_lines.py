@@ -15,9 +15,20 @@ from config import get_default_config
 import ast
 import astunparse
 from math import floor
-import functools
+from remove_duplicates import remove_duplicates
 
 current_config = None
+
+# Writer to log results incrementally
+class LogWriter:
+    def __init__(self, path):
+        self.path = path
+        with open(path, "w"):
+            pass
+
+    def append_line(self, line):
+        with open(self.path, "a", encoding="UTF-8") as f:
+            f.write(line)
 
 # Default mutation: replace ast elements with syntactically valid alternatives
 
@@ -564,6 +575,15 @@ def main(argv, seed=None):
 
     print("Used baseinput:", repr(basein))
 
+    # Log the inputs since they are determined already
+    input_log = LogWriter(mut_dir[:-1] + "_inputs.log")
+    for i in range(len(rej_strs)):
+        input_log.append_line(str(i) + ": " + repr(rej_strs[i][0])+"\n")
+    input_log.append_line("The baseinput was: " + repr(basein))
+
+    lwriter = LogWriter(mut_dir[:-1] + ".log")
+    lwriter.append_line("Mutating script: " + repr(orig_file) + "\n")
+
     all_generated = { int_key : [] for int_key in range(len(base_conds)) }
 
     # Run the mutation process for every rejected string
@@ -667,6 +687,7 @@ def main(argv, seed=None):
                 print("Mutation complete:", arg, "(base rejected)", flush=True)
                 print("Exception for base on", arg, ":", repr(berr), flush=True)
                 mutants_with_cause.append((arg, "valid string rejected"))
+                lwriter.append_line(repr(mutants_with_cause[-1]) + "\n")
 
             (prim, sec) = get_left_diff(cdict, b_cdict)
             # Remove all elements that have been explored (history) or do not belong to the actual code (i.e. error constructor - lines)
@@ -709,6 +730,7 @@ def main(argv, seed=None):
                 if not err or diff_err:
                 	print("Mutation complete:", arg, "(mutated string accepted)", flush=True)
                 	mutants_with_cause.append((arg, "mutated string accepted"))
+                	lwriter.append_line(repr(mutants_with_cause[-1]) + "\n")
                 elif not berr:
                     discarded.add(arg)
             		
@@ -728,75 +750,13 @@ def main(argv, seed=None):
         os.remove(orig_out)
     os.rename(ar1, orig_out)
     print("Done. The final mutants are in:", mut_dir)
-    # Write a log on why each file was kept. This way we (or check_results.py) can check whether the mutation procedure is working correctly.
-    with open(mut_dir[:-1] + "_inputs.log", "w", encoding="UTF-8") as file:
-            for i in range(len(rej_strs)):
-                file.write(str(i) + ": " + repr(rej_strs[i][0])+"\n")
-            file.write("The baseinput was: " + repr(basein))
-
+    # Remove duplicates and update the log accordingly
     mutants_with_cause = remove_duplicates(mut_dir, ".py", mutants_with_cause)
 
-    with open(mut_dir[:-1] + ".log", "w", encoding="UTF-8") as file:
-        file.write("Mutating script: " + repr(orig_file) + "\n")
-        for e in mutants_with_cause:
-            file.write(repr(e) + "\n")
-
-# Reads a file and returns both its content and the content's hash using a cache. Used for finding straight duplicate mutant files.
-@functools.lru_cache(maxsize=None)
-def read_file_hashed(filename):
-    with open(filename, "r", encoding="UTF-8") as fli:
-        res = fli.read()
-        return (res,hash(res))
-
-# Simple duplicate removal method - given a file directory (mutation results), a file extension (.py) as well as the list of mutant, cause pairs
-# Removes all duplicates (i.e. same content) from both the file-system and the list of pairs
-def remove_duplicates(fdir, ext, pairlst):
-    print("Removing duplicates...", flush=True)
-    ext = ext if not ext.startswith(".") else ext[1:]
-    fdir = fdir if not fdir.endswith("/") else fdir[:-1]
-    files = []
-    dups = []
-    rmdup = []
-    for fl in glob.glob(fdir + "/*." + ext):
-        fl = fl.replace("\\", "/")
-        files.append(fl)
-
-    if len(files) < 2:
-        return pairlst
-    cmps = (len(files)*(len(files)-1))/2
-    lstep = 0
-    prog = 0
-
-    for idx1 in range(len(files)):
-        fl1 = files[idx1]
-        s1 = read_file_hashed(fl1)
-        for idx2 in range(idx1+1,len(files)):
-            fl2 = files[idx2]
-            s2 = read_file_hashed(fl2)
-            if s1[1] == s2[1] and s1[0] == s2[0]:
-                dups.append((fl1, fl2))
-            prog += 1
-            cprog = (prog/cmps)*100
-            if cprog > lstep:
-                lstep += 1
-                print("Progress:", int(cprog), "%", flush=True)
-
-    for (a, b) in dups:
-        if os.path.exists(a) and os.path.exists(b):
-            os.remove(b)
-            rmdup.append(b)
-
-    i = 0
-    while i < len(pairlst):
-        if pairlst[i][0] in rmdup:
-            del pairlst[i]
-        else:
-            i += 1
-
-    print("Removed duplicates:", len(rmdup), flush=True)
-
-    return pairlst
-
+    lwriter = LogWriter(mut_dir[:-1] + ".log")
+    lwriter.append_line("Mutating script: " + repr(orig_file) + "\n")
+    for e in mutants_with_cause:
+        lwriter.append_line(repr(e) + "\n")
 
 if __name__ == "__main__":
     main(sys.argv)
