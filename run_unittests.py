@@ -49,7 +49,7 @@ def extract_test_stats(unittest_output):
 
 # Running tests can be done independently
 def run_tests_threaded(script):
-		return run_unittests_for_script(script)
+	return run_unittests_for_script(script)
 
 def main(argv):
 	global current_config
@@ -58,17 +58,13 @@ def main(argv):
 	if len(argv) < 2:
 		raise SystemExit("Please specify the folder the scripts are in!")
 	argv[1] = argv[1].replace("\\", "/")
-	scriptname = argv[1][:-1] if argv[1].endswith("/") else argv[1]
-	scriptname = scriptname if scriptname.rfind("/") == -1 else scriptname[scriptname.rfind("/")+1:]
-	base_dir = TidyDir("",guess=False)
-	(sub_dir, script_name) = base_dir.split_path(scriptname)
-	if scriptname.rfind("/") >= 0:
-		scriptname = scriptname[scriptname.rfind("/")+1:]
-	test_res_fl = str(TidyDir(current_config["default_mut_dir"]+"/")) + scriptname + "_test_results.log"
+	argv[1] = argv[1][:-1] if argv[1].endswith("/") else argv[1]
+	test_res_fl = argv[1] + "_test_results.log"
 	scripts_f = []
 	scripts_p = []
 	targets = []
 	num_workers = int(current_config["test_threads"])
+	run_seq = []
 
 	for fnm in glob.iglob(argv[1]+"/*.py", recursive=True):
 		fnm = fnm.replace("\\","/")
@@ -86,8 +82,25 @@ def main(argv):
 				if tpass > 0:
 					scripts_p.append((test_script,(tpass,tfail)))
 			else:
-				scripts_f.append((test_script,(tpass,tfail)))
+				# Retry scripts that timed out in sequential mode (more robust)
+				if tpass == -1 and num_workers > 1:
+					run_seq.append(test_script)
+				else:
+					scripts_f.append((test_script,(tpass,tfail)))
 			fidx += 1
+
+	if run_seq:
+		print("Running", len(run_seq), "scripts in sequential mode...", flush=True)
+		seqidx = 0
+		for test_script in run_seq:
+			print("Re-running tests:", str(seqidx+1), "/", str(len(run_seq)), flush=True)
+			seqidx += 1
+			(tpass, tfail) = run_unittests_for_script(test_script)
+			if tfail == 0:
+				if tpass > 0:
+					scripts_p.append((test_script,(tpass,tfail)))
+			else:
+				scripts_f.append((test_script,(tpass,tfail)))
 
 	# Write the test stats to a file. Mutants that fail no tests are at the top if they exist.
 	with open(test_res_fl, "w", encoding="UTF-8") as dest:
