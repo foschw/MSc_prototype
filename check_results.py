@@ -128,6 +128,7 @@ def main(argv):
 	behave = {}
 	mutant_to_cause = {}
 	num_workers = int(current_config["test_threads"])
+	run_seq = []
 
 	with open(cause_file, "r", encoding="UTF-8") as causes:
 		for num, line in enumerate(causes):
@@ -183,9 +184,29 @@ def main(argv):
 		for future in concurrent.futures.as_completed(future_to_index):
 			index = future_to_index[future]
 			mut_behaves[index] = future.result()
+			if future.result() == "-1":
+				run_seq.append(index)
 			if fidx % 3 == 0:
 				print("Checking mutant:", str(1+int(fidx/3)) + "/" + str(len(all_mutants)), flush=True)
 			fidx += 1
+
+	seq_idx = 0
+	if run_seq:
+		print("Checking:", len(run_seq), "scripts in sequential mode....", flush=True)
+		for sq_idx in run_seq:
+			print("Checking script:", str(seq_idx+1), "/", str(len(run_seq)), flush=True)
+			seq_idx += 1
+			my_mutant = all_mutants[int(sq_idx/3)]
+			sq_command = sq_idx % 3
+			if sq_command == 0:
+				mut_behaves[sq_idx] = execute_script_with_argument(my_mutant,basein)
+			else:
+				my_input = my_mutant[:my_mutant.rfind("_")]
+				my_input = inputs[int(my_input[my_input.rfind("_")+1:])]
+				if sq_command == 1:
+					mut_behaves[sq_idx] = execute_script_with_argument(original_file, my_input)
+				else:
+					mut_behaves[sq_idx] = execute_script_with_argument(my_mutant, my_input)
 
 	bhindex = 0
 	while bhindex < len(mut_behaves):
