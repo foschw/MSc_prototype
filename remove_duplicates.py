@@ -67,7 +67,9 @@ def main(logfile, folder):
 			if idx == 0:
 				first_line = ln
 			if idx > 0:
-				mutants_with_cause.append(eval(ln))
+				mut = eval(ln)
+				if os.path.exists(mut[0]):
+					mutants_with_cause.append(mut)
 
 	mutants_with_cause = remove_duplicates(folder, ".py", mutants_with_cause)
 
