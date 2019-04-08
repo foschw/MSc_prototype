@@ -26,23 +26,22 @@ def remove_duplicates(fdir, ext, pairlst):
         return pairlst
     lstep = 0
     prog = 0
-    idx1 = 0
 
-    while idx1 < len(files):
+    for idx1 in range(len(files)):
         fl1 = files[idx1]
-        idx2 = idx1 +1
-        idx1 += 1
+        if fl1 is None:
+            continue
         s1 = read_file_hashed(fl1)
-        while idx2 < len(files):
+        for idx2 in range(idx1+1,len(files)):
        	    cmps = (len(files)*(len(files)-1))/2
             fl2 = files[idx2]
+            if fl2 is None:
+                continue
             s2 = read_file_hashed(fl2)
             if s1[1] == s2[1] and s1[0] == s2[0]:
                 dups.append(fl2)
                 os.remove(fl2)
-                del files[idx2]
-            else:
-            	idx2 += 1
+                files[idx2] = None
             prog += 1
             cprog = (prog/cmps)*100
             if cprog > lstep:
