@@ -7,6 +7,7 @@ from config import get_default_config
 from tidydir import TidyDir as TidyDir
 import concurrent.futures
 import glob
+from find_mutation_lines import LogWriter
 
 current_config = None
 
@@ -33,6 +34,7 @@ def extract_test_stats(unittest_output):
 	re_test_fails = r"^FAILED \(((failures(=\d+)?)?(, )?(errors)?)=\d+\)"
 	total_tests = 0
 	res_open = False
+	num_fail = -2
 	for l in outpt_lines:
 		l = l.lstrip().rstrip()
 		if re.match(re_test_num, l):
@@ -45,6 +47,9 @@ def extract_test_stats(unittest_output):
 			num_fail = 0
 			for ob in re_num.findall(l):
 				num_fail += int(ob[1:])
+	# This requires manual examination
+	if num_fail == -2:
+		return (-2,-2)
 	return (total_tests-num_fail,num_fail)
 
 # Running tests can be done independently
@@ -60,6 +65,7 @@ def main(argv):
 	argv[1] = argv[1].replace("\\", "/")
 	argv[1] = argv[1][:-1] if argv[1].endswith("/") else argv[1]
 	test_res_fl = argv[1] + "_test_results.log"
+	lwriter = LogWriter(test_res_fl)
 	scripts_f = []
 	scripts_p = []
 	targets = []
@@ -87,6 +93,7 @@ def main(argv):
 					run_seq.append(test_script)
 				else:
 					scripts_f.append((test_script,(tpass,tfail)))
+			lwriter.append_line(test_script + ":\nPass: " + str(tpass) + ", Fail: " + str(tfail) + " \n" + "\n")
 			fidx += 1
 
 	if run_seq:
@@ -101,6 +108,7 @@ def main(argv):
 					scripts_p.append((test_script,(tpass,tfail)))
 			else:
 				scripts_f.append((test_script,(tpass,tfail)))
+
 
 	# Write the test stats to a file. Mutants that fail no tests are at the top if they exist.
 	with open(test_res_fl, "w", encoding="UTF-8") as dest:
