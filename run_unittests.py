@@ -29,20 +29,19 @@ def run_unittests_for_script(script):
 
 # Extracts the amount of test passes p and fails f as pair (p, f)
 def extract_test_stats(unittest_output):
-	outpt_lines = unittest_output.split("\n")
+	outpt_lines = reversed(unittest_output.lstrip().rstrip().split("\n"))
 	re_test_num = r"^Ran \d+ test(s)? in \d(\.)?\d*s"
 	re_test_fails = r"^FAILED \(((failures(=\d+)?)?(, )?(errors)?)=\d+\)"
 	total_tests = 0
-	res_open = False
 	num_fail = -2
 	for l in outpt_lines:
 		l = l.lstrip().rstrip()
 		if re.match(re_test_num, l):
 			total_tests = int(l[4:l.find("test")])
-			res_open = True
-		elif (l == "OK") and res_open:
+			break
+		elif (l == "OK"):
 			num_fail = 0
-		elif re.match(re_test_fails,l) and res_open:
+		elif re.match(re_test_fails,l):
 			re_num = re.compile("=\d+")
 			num_fail = 0
 			for ob in re_num.findall(l):
