@@ -11,6 +11,7 @@ from tidydir import TidyDir as TidyDir
 from rewrite_ast import rewrite_in as rewrite_ast
 import datetime
 import random
+from filter_bin import main as convert_with_filter
 
 current_config = None
 
@@ -23,6 +24,8 @@ def main(argv):
     timeout = int(current_config["min_timeout"]) if not argv[4] else argv[4]
     seed = None if not argv[5] else argv[5]
     valid_file = None if not argv[6] else argv[6]
+    filter_py = None if not argv[7] else argv[7]
+    filter_py = filter_py if filter_py.endswith(".py") else filter_py + ".py"
 
     if seed is None:
         random.seed()
@@ -31,15 +34,21 @@ def main(argv):
 
     # Generate inputs in case no binary file is supplied
     if not argv[2]:
-        instr_code = rewrite_ast(prog)
-        target_loc = prog[:-3] + "_instr.py"
+        tprog = filter_py if filter_py else prog
+        instr_code = rewrite_ast(tprog)
+        target_loc = tprog[:-3] + "_instr.py"
         with open(target_loc, "w", encoding="UTF-8") as inst_out:
             inst_out.write(instr_code)
-        print("Generating inputs for:", prog, "...", flush=True)
+        print("Generating inputs for:", tprog, "...", flush=True)
         gen([None, target_loc, timelimit, binfile, valid_file],seed)
     # Otherwise use the given inputs
     else:
         print("Using inputs from:", binfile, flush=True)
+
+    if filter_py:
+        print("Filtering inputs...", flush=True)
+        convert_with_filter(prog, binfile, binfile)
+
     print("Starting mutation...", prog, "(Timestamp: '" + str(datetime.datetime.now()) + ", seed: " + str(seed) + "')", flush=True)
     # Run the mutation algorithm
     mutate([None, prog, binfile, timeout], seed)
@@ -60,12 +69,13 @@ if __name__ == "__main__":
     timeout = None
     seed = None
     valid_file = None
+    filter_py = None
     if len(sys.argv) < 2:
         raise SystemExit("Please specify a .py file as argument.")
     elif len(sys.argv) > 2 and not sys.argv[2].startswith("-"):
-        raise SystemExit("Invalid parameter after script. \n Possible options: \n -b \"binary input file\", \n -t \"time for generation (in s)\", \n -l \"timeout for mutant execution (in s)\",\n -s \"random seed\",\n \"-v file_with_valid_inputs\"")
+        raise SystemExit("Invalid parameter after script. \n Possible options: \n -b \"binary input file\", \n -t \"time for generation (in s)\", \n -l \"timeout for mutant execution (in s)\",\n -s \"random seed\",\n \"-v file_with_valid_inputs\",\n -f \"program with similar inputs\"")
 
-    opts, args = getopt.getopt(sys.argv[2:], "b:t:l:s:v:")
+    opts, args = getopt.getopt(sys.argv[2:], "b:t:l:s:v:f:")
     for opt, a in opts:
         if opt == "-b":
             print("Using binary file:", a, flush=True)
@@ -78,5 +88,7 @@ if __name__ == "__main__":
             seed = int(a)
         elif opt == "-v":
             valid_file = a
+        elif opt == "-f":
+            filter_py = a
 
-    main([sys.argv[0],sys.argv[1],binfile,timelimit,timeout,seed,valid_file])
+    main([sys.argv[0],sys.argv[1],binfile,timelimit,timeout,seed,valid_file,filter_py])

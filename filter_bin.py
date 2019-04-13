@@ -2,10 +2,7 @@ import sys
 import imp
 import pickle
 
-if __name__ == "__main__":
-	prog = sys.argv[1]
-	orig = sys.argv[2]
-	res = sys.argv[3]
+def main(prog, orig, res):
 	valid = []
 	rej = []
 	bin_arr = pickle.load(open(orig, "rb"))
@@ -39,3 +36,6 @@ if __name__ == "__main__":
 
 	with open(res, mode="wb") as pick_file:
 		pickle.dump(combined, pick_file)
+
+if __name__ == "__main__":
+	main(sys.argv[1], sys.argv[2], sys.argv[3])
