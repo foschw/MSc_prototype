@@ -12,8 +12,22 @@ from rewrite_ast import rewrite_in as rewrite_ast
 import datetime
 import random
 from filter_bin import main as convert_with_filter
+from timeit import default_timer as timer
 
 current_config = None
+tmv = None
+
+def print_step_time(step_name=""):
+    global tmv
+    if int(current_config["time_steps"]) > 0:
+        if tmv is None:
+            tmv = timer()
+        else:
+            tm2 = timer()
+            elapsed = tm2-tmv
+            tmv = None
+            print("Step",step_name,"took:", str(elapsed)+"s",flush=True)
+
 
 def main(argv):
     global current_config
@@ -34,6 +48,7 @@ def main(argv):
         seed = random.randrange(2**31-1)
 
     # Generate inputs in case no binary file is supplied
+    print_step_time('"gen"')
     if not argv[2]:
         tprog = filter_py if filter_py else prog
         instr_code = rewrite_ast(tprog)
@@ -45,6 +60,7 @@ def main(argv):
     # Otherwise use the given inputs
     else:
         print("Using inputs from:", binfile, flush=True)
+    print_step_time('"gen"')
 
     if filter_py:
         print("Filtering inputs...", flush=True)
@@ -52,13 +68,19 @@ def main(argv):
 
     print("Starting mutation...", prog, "(Timestamp: '" + str(datetime.datetime.now()) + ", seed: " + str(seed) + "')", flush=True)
     # Run the mutation algorithm
+    print_step_time('"mutation"')
     mutate([None, prog, binfile, timeout], seed)
+    print_step_time('"mutation"')
     # Check whether the results are fine and remove potentially problematic scripts
     print("Testing result integrity...", flush=True)
+    print_step_time('"verify"')
     check([None, prog, binfile, True])
+    print_step_time('"verify"')
     # Finally run the program's test suite
     print("Running unit tests...", flush=True)
+    print_step_time('"run tests"')
     run_tests([None, current_config["default_mut_dir"] + prog[prog.rfind("/")+1:-3]+"/"])
+    print_step_time('"run tests"')
     print()
     print("Done.", "(Timestamp: '" + str(datetime.datetime.now()) + "')", flush=True)
 
