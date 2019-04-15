@@ -4,6 +4,9 @@ import glob
 import os
 import concurrent.futures
 from config import get_default_config
+from threading import Lock
+
+os_lock = Lock()
 
 # Returns a list of pairs of start and end indexes which distributes the total amount of work approximately evenly on all threads
 def compute_distribution(num_threads, lng):
@@ -38,9 +41,10 @@ def compute_distribution(num_threads, lng):
 # Reads a file and returns both its content and the content's hash using a cache. Used for finding straight duplicate mutant files.
 @functools.lru_cache(maxsize=None)
 def read_file_hashed(filename):
-    with open(filename, "r", encoding="UTF-8") as fli:
-        res = fli.read()
-        return (res,hash(res))
+    with os_lock:
+        with open(filename, "r", encoding="UTF-8") as fli:
+            res = fli.read()
+            return (res,hash(res))
 
 def compare_index(idx0, idxe, files):
     dups = []
@@ -52,9 +56,10 @@ def compare_index(idx0, idxe, files):
             fl2 = files[idx2]
             s2 = read_file_hashed(fl2)
             if s1[1] == s2[1] and s1[0] == s2[0]:
-                if os.path.exists(fl2):
-                    dups.append(fl2)
-                    os.remove(fl2)
+                with os_lock:
+                    if os.path.exists(fl2):
+                        dups.append(fl2)
+                        os.remove(fl2)
 
     return dups
 
