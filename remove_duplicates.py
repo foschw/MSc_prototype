@@ -52,8 +52,9 @@ def compare_index(idx0, idxe, files):
             fl2 = files[idx2]
             s2 = read_file_hashed(fl2)
             if s1[1] == s2[1] and s1[0] == s2[0]:
-                dups.append(fl2)
-                os.remove(fl2)
+                if os.path.exists(fl2):
+                    dups.append(fl2)
+                    os.remove(fl2)
 
     return dups
 
