@@ -25,7 +25,8 @@ def main(argv):
     seed = None if not argv[5] else argv[5]
     valid_file = None if not argv[6] else argv[6]
     filter_py = None if not argv[7] else argv[7]
-    filter_py = filter_py if filter_py.endswith(".py") else filter_py + ".py"
+    if filter_py:
+        filter_py = filter_py if filter_py.endswith(".py") else filter_py + ".py"
 
     if seed is None:
         random.seed()
