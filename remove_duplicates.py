@@ -2,6 +2,38 @@ import sys
 import functools
 import glob
 import os
+import concurrent.futures
+from config import get_default_config
+
+# Returns a list of pairs of start and end indexes which distributes the total amount of work approximately evenly on all threads
+def compute_distribution(num_threads, lng):
+    res = []
+    combs = (lng*(lng-1))/2
+    lmt = combs/num_threads
+    idxs = 0
+    idxe = 1
+    acc = 0
+    if lng <= num_threads:
+        for i in range(lng):
+            res.append((i, i+1))
+    else:
+        for i in range(lng):
+            acc += (lng-i-1)
+            if acc <= lmt:
+                idxe += 1
+            else:
+                if len(res) == num_threads-1:
+                    idxe = lng
+                    i = lng
+                res.append((idxs, idxe))
+                acc = 0
+                idxs = idxe
+                idxe = idxe+1
+
+    if res[-1][1] != lng:
+        res.append((res[-1][1],lng))
+
+    return res
 
 # Reads a file and returns both its content and the content's hash using a cache. Used for finding straight duplicate mutant files.
 @functools.lru_cache(maxsize=None)
@@ -10,10 +42,27 @@ def read_file_hashed(filename):
         res = fli.read()
         return (res,hash(res))
 
+def compare_index(idx0, idxe, files):
+    dups = []
+
+    for idx1 in range(idx0, idxe):
+        print("Thread " + str(idx0) + ":", str(idx1+1) + "/" + str(idxe) + "\n", flush=True)
+        s1 = read_file_hashed(files[idx1])
+        for idx2 in range(idx1+1,len(files)):
+            fl2 = files[idx2]
+            s2 = read_file_hashed(fl2)
+            if s1[1] == s2[1] and s1[0] == s2[0]:
+                dups.append(fl2)
+                os.remove(fl2)
+
+    return dups
+
 # Simple duplicate removal method - given a file directory (mutation results), a file extension (.py) as well as the list of (mutant, cause) pairs
 # Removes all duplicates (i.e. same content) from both the file-system and the list of pairs
 def remove_duplicates(fdir, ext, pairlst):
     print("Removing duplicates...", flush=True)
+    global current_config
+    current_config = get_default_config()
     ext = ext if not ext.startswith(".") else ext[1:]
     fdir = fdir if not fdir.endswith("/") else fdir[:-1]
     files = []
@@ -24,29 +73,16 @@ def remove_duplicates(fdir, ext, pairlst):
 
     if len(files) < 2:
         return pairlst
-    lstep = 0
-    prog = 0
 
-    for idx1 in range(len(files)):
-        fl1 = files[idx1]
-        if fl1 is None:
-            continue
-        s1 = read_file_hashed(fl1)
-        for idx2 in range(idx1+1,len(files)):
-       	    cmps = (len(files)*(len(files)-1))/2
-            fl2 = files[idx2]
-            if fl2 is None:
-                continue
-            s2 = read_file_hashed(fl2)
-            if s1[1] == s2[1] and s1[0] == s2[0]:
-                dups.append(fl2)
-                os.remove(fl2)
-                files[idx2] = None
-            prog += 1
-            cprog = (prog/cmps)*100
-            if cprog > lstep:
-                lstep += 1
-                print("Progress:", min(int(cprog),100), "%", flush=True)
+    num_threads = int(current_config["test_threads"])
+    future_to_index = {}
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as tpe:
+        for (idx1, idxe) in compute_distribution(num_threads, len(files)):
+            future_to_index[tpe.submit(compare_index, idx1, idxe, files)] = idx1
+
+        for future in concurrent.futures.as_completed(future_to_index):
+            dups = dups + future.result()
 
     i = 0
     while i < len(pairlst):
