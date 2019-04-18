@@ -60,11 +60,12 @@ def main(argv):
     # Otherwise use the given inputs
     else:
         print("Using inputs from:", binfile, flush=True)
-    print_step_time('"gen"')
 
     if filter_py:
         print("Filtering inputs...", flush=True)
         convert_with_filter(prog, binfile, binfile)
+
+    print_step_time('"gen"')
 
     print("Starting mutation...", prog, "(Timestamp: '" + str(datetime.datetime.now()) + ", seed: " + str(seed) + "')", flush=True)
     # Run the mutation algorithm
@@ -85,7 +86,7 @@ def main(argv):
     print("Done.", "(Timestamp: '" + str(datetime.datetime.now()) + "')", flush=True)
 
 if __name__ == "__main__":
-    print('The arguments are: "program path" [, -b "binary input file", -t "time for generation (in s)", -l "timeout for mutant execution" (in s), -d "directory to use as base"]', flush=True)
+    print('The arguments are: "program path" [, -b "binary input file", -t "time for generation (in s)", -l "timeout for mutant execution" (in s), -v file_with_valid_inputs, -f "path to program with similar inputs"]', flush=True)
     
     binfile = None
     timelimit = None
