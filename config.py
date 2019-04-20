@@ -7,7 +7,7 @@ def get_default_config(conf_path="mauris.conf"):
 	# The minimal timeout for each script execution in s
 	"min_timeout" : "1",
 	# Timeout for the unit test execution in s
-	"unittest_timeout" : "10",
+	"unittest_timeout" : "5",
 	# Overhead for the generation time limit
 	"best_overhead" : "0.9",
 	# Default Time limit for the generation algorithm in s
@@ -34,7 +34,7 @@ def get_default_config(conf_path="mauris.conf"):
 	# Set to 1 to allow blind modifications whenever there are no guided ones. This increases the required time and space (drive and memory) significantly, but the results may improve.
 	"blind_continue" : "0",
 	# Amount of threads that the test tools (check_results and run_unittests) should use
-	"test_threads" : "16"
+	"test_threads" : "8"
 	,
 	# Set to 1 to stop mutation early (i.e. directly after the mutated string is accepted)
 	"early_stop" : "1"
