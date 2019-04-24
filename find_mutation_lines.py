@@ -598,6 +598,10 @@ def main(argv, seed=None):
         discarded = set()
         # Save which exception the first execution of the rejected string produced
         original_ex_str = None
+        # Stores which exceptions the valid string caused
+        except_set = set()
+        # The set of final lines observed by mutants rejecting the valid string
+        rej_sigs = set()
         while queue:
             (arg, history, retries, pidx, pmstate, scstate, b_cindex) = queue.pop(0)
             skip = False
@@ -683,7 +687,7 @@ def main(argv, seed=None):
                 os.remove(arg)
                 continue
 
-            if berr:
+            if berr and (lines[0] not in rej_sigs or berr not in except_set):
                 print("Mutation complete:", arg, "(base rejected)", flush=True)
                 print("Exception for base on", arg, ":", repr(berr), flush=True)
                 mutants_with_cause.append((arg, "valid string rejected"))
@@ -731,8 +735,10 @@ def main(argv, seed=None):
                 	print("Mutation complete:", arg, "(mutated string accepted)", flush=True)
                 	mutants_with_cause.append((arg, "mutated string accepted"))
                 	lwriter.append_line(repr(mutants_with_cause[-1]) + "\n")
-                elif not berr:
+                elif not berr or (berr and (lines[0] in rej_sigs and berr in except_set)):
                     discarded.add(arg)
+                    rej_sigs.add(lines[0])
+                    except_set.add(berr)
             		
         # Don't delete the original script, we need it to create mutants from whenever a new rejected string is processed
         discarded.discard(ar1)
