@@ -14,11 +14,13 @@ current_config = None
 
 # Executes a .py file with a string argument.
 # Returns the exception in case one occurred, "-1" if the execution failed and None otherwise.
-def execute_script_with_argument(script, argument):
+def execute_script_with_argument(script, argument,tmout=None):
+	if tmout is None:
+		tmout = int(current_config["unittest_timeout_mt"])
 	cmd = ["python", script, argument]
 	try:
 		proc = subprocess.Popen(cmd, shell=False,stderr=subprocess.PIPE)
-		err = proc.communicate(timeout=int(current_config["unittest_timeout"]))[1].decode(sys.stderr.encoding)
+		err = proc.communicate(timeout=tmout)[1].decode(sys.stderr.encoding)
 	except subprocess.TimeoutExpired:
 		proc.kill()
 		proc.communicate()
@@ -137,6 +139,8 @@ def main(argv):
 				# Use eval to get the pair representation of the line. The first element is the mutant.
 				the_mutant = eval(line)[0]
 				the_mutant = the_mutant.replace("//","/")
+				if not os.path.exists(the_mutant):
+					raise SystemExit("Could not find file: '" + the_mutant + "'.\nLog file: '" + cause_file + "' is corrupted.")
 				adj_dir = base_dir if base_dir else scriptname[:scriptname.rfind("/")]
 				effect_set = mutant_to_cause.get(the_mutant) if mutant_to_cause.get(the_mutant) else set()
 				# Code mutant behaviour as integer for easy comparison
@@ -199,14 +203,14 @@ def main(argv):
 			my_mutant = all_mutants[int(sq_idx/3)]
 			sq_command = sq_idx % 3
 			if sq_command == 0:
-				mut_behaves[sq_idx] = execute_script_with_argument(my_mutant,basein)
+				mut_behaves[sq_idx] = execute_script_with_argument(my_mutant,basein,tmout=int(current_config["unittest_timeout"]))
 			else:
 				my_input = my_mutant[:my_mutant.rfind("_")]
 				my_input = inputs[int(my_input[my_input.rfind("_")+1:])]
 				if sq_command == 1:
-					mut_behaves[sq_idx] = execute_script_with_argument(original_file, my_input)
+					mut_behaves[sq_idx] = execute_script_with_argument(original_file, my_input,tmout=int(current_config["unittest_timeout"]))
 				else:
-					mut_behaves[sq_idx] = execute_script_with_argument(my_mutant, my_input)
+					mut_behaves[sq_idx] = execute_script_with_argument(my_mutant, my_input,tmout=int(current_config["unittest_timeout"]))
 
 	bhindex = 0
 	while bhindex < len(mut_behaves):
