@@ -6,8 +6,10 @@ def get_default_config(conf_path="mauris.conf"):
 	DEFAULT_CONFIG = {
 	# The minimal timeout for each script execution in s
 	"min_timeout" : "1",
-	# Timeout for the unit test execution in s
+	# Timeout for the unit test execution (single-threaded) in s
 	"unittest_timeout" : "5",
+	# Timeout for the unit test execution (multi-threaded) in s
+	"unittest_timeout_mt" : "10",
 	# Overhead for the generation time limit
 	"best_overhead" : "0.9",
 	# Default Time limit for the generation algorithm in s
