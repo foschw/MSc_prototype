@@ -13,12 +13,14 @@ current_config = None
 
 # Executes the test suite of a .py file
 # Returns the amount of tests passed and failed as a pair
-def run_unittests_for_script(script):
+def run_unittests_for_script(script,tmout=None):
+	if tmout is None:
+		tmout = int(current_config["unittest_timeout_mt"])
 	cmd = ["python", "-m", "unittest", script[script.rfind("/")+1:]]
 	script_dir = os.path.abspath(script[:script.rfind("/")+1]).replace("\\","/")
 	try:
 		proc = subprocess.Popen(cmd, shell=False,stderr=subprocess.PIPE,cwd=script_dir)
-		res = proc.communicate(timeout=int(current_config["unittest_timeout"]))[1].decode(sys.stderr.encoding)
+		res = proc.communicate(timeout=tmout)[1].decode(sys.stderr.encoding)
 	except subprocess.TimeoutExpired:
 		proc.kill()
 		proc.communicate()
@@ -101,7 +103,7 @@ def main(argv):
 		for test_script in run_seq:
 			print("Re-running tests:", str(seqidx+1), "/", str(len(run_seq)), flush=True)
 			seqidx += 1
-			(tpass, tfail) = run_unittests_for_script(test_script)
+			(tpass, tfail) = run_unittests_for_script(test_script,tmout=int(current_config["unittest_timeout"]))
 			if tfail == 0:
 				if tpass > 0:
 					scripts_p.append((test_script,(tpass,tfail)))
