@@ -44,6 +44,9 @@ def get_default_config(conf_path="mauris.conf"):
 	# Set to 1 to print which step took how much time
 	"time_steps" : "0"
 	,
+	# Set to "0" to verify each scripts behaviour before running tests. Set to "1" to only check behaviour of scripts that do not fail any tests.
+	"quick_check" : "1"
+	,
 	}
 	if conf_path and os.path.exists(conf_path):
 		with open(conf_path, "r", encoding="UTF-8") as conf:

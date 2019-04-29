@@ -123,6 +123,7 @@ def main(argv):
 	if scriptname.rfind("/"):
 		scriptname = scriptname[scriptname.rfind("/")+1:]
 	cause_file = str(TidyDir(current_config["default_mut_dir"])) + scriptname + ".log"
+	test_log = str(TidyDir(current_config["default_mut_dir"])) + scriptname + "_test_results.log"
 	inputs_file = current_config["default_rejected"] if len(argv) < 3 else argv[2]
 	clean_invalid = int(current_config["default_clean_invalid"]) if len(argv) < 4 else argv[3]
 	all_inputs = []
@@ -151,6 +152,24 @@ def main(argv):
 				mutant_to_cause[the_mutant] = effect_set
 				if the_mutant not in all_mutants:
 					all_mutants.append(the_mutant)
+
+	if int(current_config["quick_check"]) > 0:
+		all_mutants = []
+		top_page = []
+		with open(test_log, "r", encoding="UTF-8") as fl:
+			lst = fl.read().split("\n")
+		for idx in range(0,len(lst),3):
+			e = lst[idx][:-1]
+			if lst[idx+1].rstrip().endswith(r"Fail: 0"):
+				if not os.path.exists(e):
+					raise SystemExit("Cannot find file:" + e)
+				all_mutants.append(e)
+				top_page.append(lst[idx])
+				top_page.append(lst[idx+1])
+				top_page.append(lst[idx+2])
+			elif re.match(r"-+", lst[idx]) or re.findall(r"Fail: [123456789]+\d?", lst[idx+1]):
+				rest = lst[idx:-1]
+				break
 
 	rej_strs = pickle.load(open(inputs_file, "rb"))
 	basein = find_baseinput(original_file, rej_strs)
@@ -297,6 +316,25 @@ def main(argv):
 			dest.write("Invalid string accepted:\n")
 			for m_2 in mut_2:
 				dest.write(repr(m_2) + "\n")
+
+	if int(current_config["quick_check"]):
+		if all_mutants:
+			for test_mut in all_mutants:
+				if not os.path.exists(test_mut):
+					idx = top_page.index(test_mut+":")
+					# Delete the 3 lines belonging to this mutant
+					del top_page[idx]
+					del top_page[idx]
+					del top_page[idx]
+
+			# Remove the - indicator line as there are no 0 fail mutants left
+			if not top_page:
+				rest = rest[2:]
+
+			with open(test_log, "w", encoding="UTF-8") as dst:
+				for ln in top_page + rest:
+					dst.write(ln+"\n")
+				
 
 def by_index(mutant_name):
 	ky = re.findall(r"_\d+_\d+\.py$", mutant_name)[0][1:-3]

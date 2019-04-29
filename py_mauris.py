@@ -73,15 +73,22 @@ def main(argv):
     mutate([None, prog, binfile, timeout], seed)
     print_step_time('"mutation"')
     # Check whether the results are fine and remove potentially problematic scripts
-    print("Testing result integrity...", flush=True)
-    print_step_time('"verify"')
-    check([None, prog, binfile, True])
-    print_step_time('"verify"')
-    # Finally run the program's test suite
+    if int(current_config["quick_check"]) == 0:
+        print("Testing result integrity...", flush=True)
+        print_step_time('"verify"')
+        check([None, prog, binfile, True])
+        print_step_time('"verify"')
+    # Run the program's test suite
     print("Running unit tests...", flush=True)
     print_step_time('"run tests"')
     run_tests([None, current_config["default_mut_dir"] + prog[prog.rfind("/")+1:-3]+"/"])
     print_step_time('"run tests"')
+    # Only check mutants that fail no tests as the others are non-equivalent by definition
+    if int(current_config["quick_check"]) > 0:
+        print("Testing result integrity...", flush=True)
+        print_step_time('"verify"')
+        check([None, prog, binfile, True])
+        print_step_time('"verify"')        
     print()
     print("Done.", "(Timestamp: '" + str(datetime.datetime.now()) + "')", flush=True)
 
