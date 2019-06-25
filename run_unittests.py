@@ -71,7 +71,6 @@ def main(argv):
 	scripts_p = []
 	targets = []
 	num_workers = int(current_config["test_threads"])
-	run_seq = []
 
 	for fnm in glob.iglob(argv[1]+"/*.py", recursive=True):
 		fnm = fnm.replace("\\","/")
@@ -89,27 +88,9 @@ def main(argv):
 				if tpass > 0:
 					scripts_p.append((test_script,(tpass,tfail)))
 			else:
-				# Retry scripts that timed out in sequential mode (more robust)
-				if tpass == -1 and num_workers > 1:
-					run_seq.append(test_script)
-				else:
 					scripts_f.append((test_script,(tpass,tfail)))
 			lwriter.append_line(test_script + ":\nPass: " + str(tpass) + ", Fail: " + str(tfail) + " \n" + "\n")
 			fidx += 1
-
-	if run_seq:
-		print("Running", len(run_seq), "scripts in sequential mode...", flush=True)
-		seqidx = 0
-		for test_script in run_seq:
-			print("Re-running tests:", str(seqidx+1), "/", str(len(run_seq)), flush=True)
-			seqidx += 1
-			(tpass, tfail) = run_unittests_for_script(test_script,tmout=int(current_config["unittest_timeout"]))
-			if tfail == 0:
-				if tpass > 0:
-					scripts_p.append((test_script,(tpass,tfail)))
-			else:
-				scripts_f.append((test_script,(tpass,tfail)))
-
 
 	# Write the test stats to a file. Mutants that fail no tests are at the top if they exist.
 	with open(test_res_fl, "w", encoding="UTF-8") as dest:
