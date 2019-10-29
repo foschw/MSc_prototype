@@ -3,27 +3,97 @@
 import string
 import unittest
 
+class BrokenRepr:
+    def __repr__(self):
+        raise ValueError("This is a test")
+
+class assertRaisesStrict(object):
+    def __init__(self, exc):
+        self.expected_exc = exc
+    def __enter__(self):
+        return self
+    def __exit__(self, type, value, traceback):
+        if type is None:
+            raise AssertionError(self.expected_exc.__name__ + " not raised")
+        if type != self.expected_exc:
+            raise AssertionError(str(type) + " != " + str(self.expected_exc))
+        return True
+
 class TestURL(unittest.TestCase):
     def test_url_slash_missing_1(self):
-        with self.assertRaises(Exception):
+        with assertRaisesStrict(Exception):
             URL("http:")
 
     def test_url_slash_missing_2(self):
-        with self.assertRaises(Exception):
-            URL("http:/")    
+        with assertRaisesStrict(Exception):
+            URL("http:/")
+
+    def test_missing_doublepoint(self):
+        with assertRaisesStrict(Exception):
+            URL("http")    
 
     def test_url_no_proto(self):
-        with self.assertRaises(Exception):
+        with assertRaisesStrict(Exception):
             URL("://")
 
     def test_authority_invalid(self):
-        with self.assertRaises(Exception):
+        with assertRaisesStrict(Exception):
             URL("ftp://[")
 
     def test_invalid_port(self):
-        with self.assertRaises(Exception):
+        with assertRaisesStrict(Exception):
             URL("ssh://ksl.cn:-42")
 
+    def test_trailing_spaces(self):
+        test_url = URL("http://test.com     ")
+        test_url = URL("http://test.com ")
+
+    def test_leading_spaces(self):
+        with assertRaisesStrict(Exception):
+            URL(" http://test.com")
+        with assertRaisesStrict(Exception):
+            URL("   http://test.com")
+
+    def test_ipv6_invalid(self):
+        with self.assertRaises(TypeError):
+            URL("http://[xyz]")
+
+    def test_bad_protocol(self):
+        with assertRaisesStrict(Exception):
+            URL("a@://x.pl/?ref=/test.png")
+
+    def test_isvalidprotocol(self):
+        test_url = URL("x://k.l")
+        self.assertFalse(test_url.isValidProtocol(""))
+        self.assertFalse(test_url.isValidProtocol("a"))
+        self.assertTrue(test_url.isValidProtocol("1"))
+        self.assertFalse(test_url.isValidProtocol("11:"))
+
+    def test_repr_valid(self):
+        test_url = URL("http://example.com:8080/files/k.png?g=h#12")
+        url_rep = repr(test_url)
+        self.assertEqual(url_rep, "protocol:'http' host:'example.com' port:8080 file:None path:'/files/k.png' query:'g=h' ref:'12'")
+
+    def test_repr_invalid(self):
+        test_url = URL("http://example.com:8080/files/k.png?g=h#12")
+        test_url.file = BrokenRepr()
+        url_rep = repr(test_url)
+        self.assertEqual(url_rep, "This is a test")
+
+    def test_parts(self):
+        with self.assertRaises(NameError):
+            Parts("")
+    
+    def test_parts_2(self):
+        Parts("#")
+        test_parts = Parts("test?xz#pq")
+        test_parts.path = "path"
+        test_parts.query = "query"
+        test_parts.ref = "ref"
+        self.assertEqual(test_parts.getPath(), "path")
+        self.assertEqual(test_parts.getQuery(), "query")
+        self.assertEqual(test_parts.getRef(), "ref")
+        
     def test_valid_1(self):
         test_url = URL('NQ5xZPCZJ-r-Ahlwv://Le2nZ72<x9I75`p~+]\x0b]kwU1Q$@;_  z\rJ]>gN@/GsM]R`\x0b58k!:4D6R>}1]0|]c:CnO2Veh@ez5^E+5`"WLm.hGLH4k-OgZ6%CGdZHeSGj=>as1*V-rLxlJ`&]"qrdMj/i>%F"ps')
         self.assertEqual(test_url.protocol,'nq5xzpczj-r-ahlwv')
@@ -62,8 +132,19 @@ class TestURL(unittest.TestCase):
         self.assertEqual(test_url.file, None)
         self.assertEqual(test_url.path, "")
         self.assertEqual(test_url.query, "")
-        self.assertEqual(test_url.ref, '0M N \\}:\n$\n8^?f\nqpDA(( \\*_heDe-a4=x,>p[9gr i0N+R>iJ$R') 
+        self.assertEqual(test_url.ref, '0M N \\}:\n$\n8^?f\nqpDA(( \\*_heDe-a4=x,>p[9gr i0N+R>iJ$R')
+        
 
+    def test_quad_slash(self):
+        test_url = URL("url:////xyz")
+        self.assertEqual(test_url.protocol, "url")
+        self.assertEqual(test_url.host, "")
+        self.assertEqual(test_url.port, None)
+        self.assertEqual(test_url.file, None)
+        self.assertEqual(test_url.path, "////xyz")
+        self.assertEqual(test_url.query, "")
+        self.assertEqual(test_url.ref, None)
+        
 class URL:
     __slots__ = [
             'protocol',

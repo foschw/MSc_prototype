@@ -4,14 +4,24 @@
 # Augmented with a simple test suite
 import unittest
 
+class assertRaisesStrict(object):
+    def __init__(self, exc):
+        self.expected_exc = exc
+    def __enter__(self):
+        return self
+    def __exit__(self, type, value, traceback):
+        if type is None:
+            raise AssertionError("Exception not raised")
+        return type == self.expected_exc
+
 class TestMathexpr(unittest.TestCase):
     def test_pi_const(self):
         with self.assertRaises(TypeError):
-            parser = Parser("", vars={"pi":"3"})
+            parser = Parser("", vars={"pi":3})
 
     def test_e_const(self):
-        with self.assertRaises(TypeError) as ex:
-            parser = Parser("", vars={"e":"3"})
+        with self.assertRaises(TypeError):
+            parser = Parser("", vars={"e":2})
 
     def test_priority(self):
         self.assertEqual(Parser("2+3*4").getValue(),14)
@@ -26,20 +36,22 @@ class TestMathexpr(unittest.TestCase):
     def test_div_by_zero(self):
         with self.assertRaises(TypeError):
             Parser("pi/0").getValue()
+        with assertRaisesStrict(Exception):
+            Parser("3/0").getValue()
 
     def test_parentheses_unbalanced(self):
-        with self.assertRaises(Exception) as ex:
+        with assertRaisesStrict(Exception):
             Parser("(2*(3+4)))").getValue()
-        self.assertEqual(type(ex.exception), Exception)
+        with assertRaisesStrict(Exception):
+            Parser("2*((3)").getValue()
 
     def test_unbound_var(self):
         with self.assertRaises(TypeError):
             Parser("2*a").getValue()
 
     def test_multiple_dot(self):
-        with self.assertRaises(Exception) as ex:
+        with assertRaisesStrict(Exception):
             Parser("2.45.6").getValue()
-        self.assertEqual(type(ex.exception), Exception)
 
     def test_neg_1(self):
         self.assertEqual(Parser("2*-21").getValue(),-42)
@@ -67,6 +79,17 @@ class TestMathexpr(unittest.TestCase):
 
     def test_omitted_dot_2(self):
         self.assertEqual(Parser("3*.5").getValue(),1.5)
+
+    def test_divs(self):
+        self.assertEqual(Parser("1/2").getValue(), 0.5)
+        self.assertEqual(Parser("1/-2").getValue(), -0.5)
+        self.assertEqual(Parser("-1/2").getValue(), -0.5)
+        self.assertEqual(Parser("-1/-2").getValue(), 0.5)
+
+    def test_parentheses(self):
+        self.assertEqual(Parser("(3+4)*5").getValue(), 35)
+        self.assertEqual(Parser("((2+3)*4)").getValue(), 20)
+
 
 class Parser:
     def __init__(self, string, vars={}):

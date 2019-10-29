@@ -30,6 +30,9 @@ hex_values = {
 }
 
 class TestDecode(unittest.TestCase):
+    def test_all_hex(self):
+        self.assertEqual(cgi_decode("%1a%2A%3b%4B%5c%6C%7c%8C%9D%0d%1e%2E%3f%3F"), "\x1a*;K\\l|\x8c\x9d\r\x1e.??")
+
     def test_percent_valid_1(self):
         self.assertEqual(cgi_decode("a%20"),"a ")
 
