@@ -3,6 +3,10 @@ import sys
 import astunparse
 
 class InRewrite(ast.NodeTransformer):
+	def __init__(self):
+		super().__init__()
+		self.skipped = []
+
 	def visit_Compare(self, tree_node):
 		left = tree_node.left
 		if not tree_node.ops or not isinstance(tree_node.ops[0], ast.In):
@@ -20,14 +24,24 @@ class InRewrite(ast.NodeTransformer):
 		self.modded = True
 		return mod_val
 
+	def visit_ImportFrom(self, tree_node):
+		if tree_node.module == "__future__":
+			self.skipped.append(astunparse.unparse(tree_node))
+			return None
+		return self.generic_visit(tree_node)
+
 def rewrite_in(pyfile):
 	with open(pyfile, "r", encoding="UTF-8") as f:
 		base_ast = ast.fix_missing_locations(ast.parse(f.read()))
+		prefix = ""
 		try:
 			rewrite = InRewrite()
 			new_ast = rewrite.visit(base_ast)
 			if hasattr(rewrite, "modded"):
-				wrapper_ast = ast.fix_missing_locations(ast.parse("import taintedstr\nclass TaintWrapper(str):\n\n    def __init__(self, other):\n        if isinstance(other, TaintWrapper):\n            other = other.other\n        self.tainted = isinstance(other, taintedstr.tstr)\n        self.other = other\n\n    def in_(self, cpt):\n        if self.tainted:\n            return self.other.in_(cpt)\n        else:\n            return self.other in cpt\n"))
+				if rewrite.skipped:
+					for ndval in rewrite.skipped:
+						prefix = prefix + ndval + "\n"
+				wrapper_ast = ast.fix_missing_locations(ast.parse(prefix + "import taintedstr\nclass TaintWrapper(str):\n\n    def __init__(self, other):\n        if isinstance(other, TaintWrapper):\n            other = other.other\n        self.tainted = isinstance(other, taintedstr.tstr)\n        self.other = other\n\n    def in_(self, cpt):\n        if self.tainted:\n            return self.other.in_(cpt)\n        else:\n            return self.other in cpt\n"))
 				new_ast.body = wrapper_ast.body + new_ast.body
 			return astunparse.unparse(new_ast)
 		except Exception as e:
