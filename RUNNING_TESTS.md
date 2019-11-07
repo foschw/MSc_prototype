@@ -55,3 +55,5 @@ To reproduce the five runs of each subject use the following commands:
 3. python py_mauris.py subjects/artificial/xsum.py -b "40m3/rejected_xsum.bin" -s 823474137
 4. python py_mauris.py subjects/artificial/xsum.py -b "40m4/rejected_xsum.bin" -s 1075251467
 5. python py_mauris.py subjects/artificial/xsum.py -b "40m5/rejected_xsum.bin" -s 1451425883
+
+For docker use the shell: docker run -it mauris /bin/bash
