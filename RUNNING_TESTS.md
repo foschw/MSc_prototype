@@ -57,3 +57,7 @@ To reproduce the five runs of each subject use the following commands:
 5. python py_mauris.py subjects/artificial/xsum.py -b "40m5/rejected_xsum.bin" -s 1451425883
 
 For docker use the shell: docker run -it mauris /bin/bash
+
+- Remarks:
+Please note that only the mutants of the last execution of each subjects remain in the mutants folder.
+Furthermore in case there is an offset between the log and the mutants in our output this is caused by us re-running check_results with quick_check turned off.
