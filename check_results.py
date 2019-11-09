@@ -105,7 +105,7 @@ def find_baseinput(ar1, mut_base_pairs):
 	return basein
 
 
-def main(argv):
+def main(argv, qc=None):
 	global current_config
 	current_config = get_default_config()
 	# Specify the original name of the script to check the results. 
@@ -153,7 +153,8 @@ def main(argv):
 				if the_mutant not in all_mutants:
 					all_mutants.append(the_mutant)
 
-	if int(current_config["quick_check"]) > 0:
+	qc = qc if qc is not None else int(current_config["quick_check"])
+	if  qc > 0:
 		all_mutants = []
 		top_page = []
 		with open(test_log, "r", encoding="UTF-8") as fl:
@@ -317,7 +318,7 @@ def main(argv):
 			for m_2 in mut_2:
 				dest.write(repr(m_2) + "\n")
 
-	if int(current_config["quick_check"]):
+	if qc > 0:
 		if all_mutants:
 			for test_mut in all_mutants:
 				if not os.path.exists(test_mut):
@@ -341,4 +342,4 @@ def by_index(mutant_name):
 	return (int(ky[:ky.find("_")]), int(ky[ky.find("_")+1:]))
 
 if __name__ == "__main__":
-	main(sys.argv)
+	main(sys.argv, qc=0)
