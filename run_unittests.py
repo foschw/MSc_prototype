@@ -34,7 +34,7 @@ def extract_test_stats(unittest_output, script):
 	script = script if script.rfind("/") == -1 else script[script.rfind("/")+1:]
 	if script.endswith(".py"):
 		script = script[:-3]
-	outpt_lines = unittest_output.lstrip().rstrip().split("\n") # reversed()
+	outpt_lines = unittest_output.lstrip().rstrip().split("\n")
 	re_test_num = r"^Ran \d+ test(s)? in \d(\.)?\d*s"
 	re_tstname = r"^=+$"
 	total_tests = 0
