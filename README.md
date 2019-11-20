@@ -6,3 +6,5 @@ Usage:
 2. run "python py_mauris.py path_to_py.py (-t approximate allowed input generation time in seconds)"
 2.1 if you want to save the console output append "> >(tee -a stdout.log) 2> >(tee -a stderr.log >&2)" (stdout + stderr) or "| tee output.log" (stdout only) to the command
 3. you can repeat a run with a valid .bin file by using the -b parameter and also set the random seed with -s
+
+The subjects are from https://github.com/uds-se/immortals/tree/master/jsontester (github folder) and https://github.com/vrthra/pychains (artificial folder) respectively.
