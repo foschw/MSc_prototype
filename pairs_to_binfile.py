@@ -8,6 +8,7 @@ def main(args):
         raise SystemExit("Please specify the output file and at least one pair as parameters")
     outfile = args[1]
     resl = []
+    # Parse the following arguments as pairs of (rejected input, valid input)
     for i in range(2,len(sys.argv)):
         resl.append(eval(sys.argv[i]))
     print(resl, flush=True)
