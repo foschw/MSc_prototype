@@ -7,6 +7,8 @@ from config import get_default_config
 
 # Returns a list of pairs of start and end indexes which distributes the total amount of work approximately evenly on all threads
 def compute_distribution(num_threads, lng):
+    if num_threads == 1:
+        return [(0, lng)]
     res = []
     combs = (lng*(lng-1))/2
     lmt = combs/num_threads
@@ -101,23 +103,23 @@ def remove_duplicates(fdir, ext, pairlst):
     return pairlst
 
 def main(logfile, folder):
-	mutants_with_cause = []
-	with open(logfile, "r", encoding="UTF-8") as f:
-		for idx, ln in enumerate(f):
-			if idx == 0:
-				first_line = ln
-			if idx > 0:
-				mut = eval(ln)
-				if os.path.exists(mut[0]):
-					mutants_with_cause.append(mut)
+    mutants_with_cause = []
+    with open(logfile, "r", encoding="UTF-8") as f:
+        for idx, ln in enumerate(f):
+            if idx == 0:
+                first_line = ln
+            if idx > 0:
+                mut = eval(ln)
+                if os.path.exists(mut[0]):
+                    mutants_with_cause.append(mut)
 
-	mutants_with_cause = remove_duplicates(folder, ".py", mutants_with_cause)
+    mutants_with_cause = remove_duplicates(folder, ".py", mutants_with_cause)
 
-	with open(logfile, "w", encoding="UTF-8") as f:
-		f.write(first_line)
-		for e in mutants_with_cause:
-			f.write(repr(e) + "\n")
+    with open(logfile, "w", encoding="UTF-8") as f:
+        f.write(first_line)
+        for e in mutants_with_cause:
+            f.write(repr(e) + "\n")
 
 
 if __name__ == "__main__":
-	main(sys.argv[1], sys.argv[2])
+    main(sys.argv[1], sys.argv[2])
