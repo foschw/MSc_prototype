@@ -25,6 +25,7 @@ def main(args):
         sys.path.insert(0, subpath)
     outfile = args[2]
     resl = []
+    # Parse program inputs from the command line
     for i in range(3,len(sys.argv)):
         resl.append(sys.argv[i])
     print(resl, flush=True)
