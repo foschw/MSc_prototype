@@ -303,7 +303,7 @@ class MutVisit(ast.NodeVisitor):
         self.mod_cnt += 1
         self.generic_visit(tree_node)
 
-# Implements default mutation - replaces ast elements with syntactically correct alternatives
+# Implements default mutation - replaces ast elements (in string form) with syntactically correct alternatives
 def mutate_default(inpt):
     inpt_ast = ast.fix_missing_locations(ast.parse(inpt))
     mvisit = MutVisit()
@@ -350,7 +350,7 @@ def get_left_diff(d1, d2):
 
 # Creates all possible conditions that may adjust the path of the mutated string to be like the original string
 # Parameters:
-# old_cond: The old condition's line number
+# lineno: The old condition's line number
 # file: The current mutants file path
 def make_new_conditions(lineno, file):
     global manual_errs
@@ -423,15 +423,15 @@ def get_possible_fixes(delta, file):
     # In case there are primary candidates generate a mutant for all of them.
     if prim:
         for (lineno, state) in prim:
-        	fix_list = make_new_conditions(lineno,file)
-        	if fix_list:
-        	    fixmap.append((fix_list, lineno, state, None))
+            fix_list = make_new_conditions(lineno,file)
+            if fix_list:
+                fixmap.append((fix_list, lineno, state, None))
     # Otherwise test all remaining candidates
     elif sec:
         for (lineno, state) in sec:
-        	fix_list = make_new_conditions(lineno,file)
-        	if fix_list:
-        	    fixmap.append((fix_list, lineno, None, state))
+            fix_list = make_new_conditions(lineno,file)
+            if fix_list:
+                fixmap.append((fix_list, lineno, None, state))
     # Returns a list of ([possible fixes for a line], line number, pre-modification condition value)
     return fixmap
 
@@ -445,8 +445,7 @@ def file_copy_replace(target, source, modifications):
                 elif modifications.get(i+1) != "":
                     trgt.write(line)
 
-# Removes all mutants that are intermediate (i.e. we cannot tell whether they are equivalent)
-# The argument completed stores all non-equivalent mutants
+# Removes all mutants from a directory. Used before executing Mauris
 def cleanup(mut_dir):
     re_mutant = re.compile(r"_\d+_\d+\.py$")
     for fl in glob.glob(mut_dir + "/*.py"):
@@ -472,7 +471,7 @@ def rm_dups(prsec, history, hrecord, h_index):
 
     return prsec
 
-# Translate the dict into a frozenset of pairs to easily check for equality
+# Translate the dict used by argtracer into a frozenset of pairs to easily check for equality
 def get_frozen(argtracer_dict):
     tmp = []
     for k in argtracer_dict.keys():
@@ -513,7 +512,7 @@ def main(argv, seed=None):
     if not rej_strs:
         raise SystemExit("File: " + pick_file + " contains no inputs.")
 
-    # Precompute the locations of conditions and the lines of their then and else case and format the file properly
+    # Pre-compute the locations of conditions and the lines of their then and else case and format the file properly
     global manual_errs
     manual_errs = argtracer.compute_base_ast(ar1, mut_dir + script_name + ".py")
     ar1 = mut_dir + script_name + ".py"
@@ -557,7 +556,7 @@ def main(argv, seed=None):
         print("Execution timed out on basestring! Try increasing timeout (currently", timeout," seconds)")    
 
     if err:
-    	raise SystemExit("Exiting: " + pick_file + " contains no valid inputs for " + ar1)
+        raise SystemExit("Exiting: " + pick_file + " contains no valid inputs for " + ar1)
 
     # Remove duplicates (same condition trace) from valid inputs
     idxl = 0
@@ -598,7 +597,7 @@ def main(argv, seed=None):
         discarded = set()
         # Save which exception the first execution of the rejected string produced
         original_ex_str = None
-        # Stores which exceptions the valid string caused
+        # Stores which exceptions the valid string caused in the mutant
         except_set = set()
         # The set of final lines observed by mutants rejecting the valid string
         rej_sigs = set()
@@ -701,7 +700,7 @@ def main(argv, seed=None):
             # Don't create mutants if their line combination is already in the queue
             prim = [] if not prim else rm_dups(prim, history, all_generated, b_cindex)
 
-            # Sec will never be progressed if prim is not empty
+            # Sec will never be processed if prim is not empty
             sec = [] if not sec or len(prim) > 0 else rm_dups(sec, history, all_generated, b_cindex)
 
             print("Used string:", repr(s), flush=True)
@@ -712,9 +711,9 @@ def main(argv, seed=None):
             print("Final line:", str(lines[0]), flush=True)
             print("", flush=True)
             if err:
-            	# Check whether the exception is different from the first encountered one
-            	diff_err = str(err.__class__) != original_ex_str
-            	err = True
+                # Check whether the exception is different from the first encountered one
+                diff_err = str(err.__class__) != original_ex_str
+                err = True
             print("Mutated string rejected:", err, "different:", diff_err, flush=True)
             if (err and not diff_err) or int(current_config["early_stop"]) == 0:
                 all_fixes = get_possible_fixes((prim, sec), arg)
@@ -732,14 +731,14 @@ def main(argv, seed=None):
             # Check whether the mutant is valid (rejects base or accepts mutated string) and record its behaviour
             if arg != ar1:
                 if not err or diff_err:
-                	print("Mutation complete:", arg, "(mutated string accepted)", flush=True)
-                	mutants_with_cause.append((arg, "mutated string accepted"))
-                	lwriter.append_line(repr(mutants_with_cause[-1]) + "\n")
+                    print("Mutation complete:", arg, "(mutated string accepted)", flush=True)
+                    mutants_with_cause.append((arg, "mutated string accepted"))
+                    lwriter.append_line(repr(mutants_with_cause[-1]) + "\n")
                 elif not berr or (berr and (lines[0] in rej_sigs and berr in except_set)):
                     discarded.add(arg)
                     rej_sigs.add(lines[0])
                     except_set.add(berr)
-            		
+                    
         # Don't delete the original script, we need it to create mutants from whenever a new rejected string is processed
         discarded.discard(ar1)
         # Remove all scripts that neither reject the base string nor accept the mutated string
